@@ -75,7 +75,7 @@ if (usernameInput && passwordInput) {
 }
 
 // ✅ هذا ثابت: الباك إند على المنفذ 5000
-const API_BASE = "http://localhost:5000";
+const API_BASE = "https://smart-school-backend-olz8.onrender.com/api";
 
 if (!loginBtn) {
   console.error('login button not found (id=login-btn)');

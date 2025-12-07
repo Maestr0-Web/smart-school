@@ -4,7 +4,7 @@ console.log("admin.js loaded");
 // ==============================
 // إعدادات عامة / ثوابت
 // ==============================
-const API_BASE = "http://127.0.0.1:5000/api";
+const API_BASE = "https://smart-school-backend-olz8.onrender.com/api";
 const THEME_KEY = "smart_school_theme";
 
 let currentUser = null;
