@@ -2,8 +2,18 @@
 import { pool } from "../config/db.js";
 
 class PermissionRoleModel {
-  // ربط صلاحية بدور معيّن
-  static async assign(role_id, permission_id) {
+  // ربط صلاحية بدور معيّن (مع حماية المدرسة)
+  static async assign(school_id, role_id, permission_id) {
+    // 🛡️ التأكد أن الدور يتبع لنفس المدرسة قبل الربط
+    const checkRole = await pool.query(
+      `SELECT id FROM roles WHERE id = $1 AND school_id = $2`,
+      [role_id, school_id]
+    );
+
+    if (checkRole.rowCount === 0) {
+      throw new Error("Role not found or unauthorized");
+    }
+
     const result = await pool.query(
       `INSERT INTO role_permissions (role_id, permission_id)
        VALUES ($1, $2)
@@ -13,29 +23,39 @@ class PermissionRoleModel {
     return result.rows[0];
   }
 
-  // جميع العلاقات
-  static async getAll() {
+  // جميع العلاقات (للمدرسة فقط)
+  static async getAll(school_id) {
     const result = await pool.query(
-      `SELECT * FROM role_permissions ORDER BY id ASC`
+      `SELECT rp.* FROM role_permissions rp
+       JOIN roles r ON r.id = rp.role_id
+       WHERE r.school_id = $1
+       ORDER BY rp.id ASC`,
+      [school_id]
     );
     return result.rows;
   }
 
-  // جميع العلاقات لدور معيّن
-  static async getByRole(role_id) {
+  // جميع العلاقات لدور معيّن (مع حماية المدرسة)
+  static async getByRole(school_id, role_id) {
     const result = await pool.query(
-      `SELECT * FROM role_permissions WHERE role_id = $1`,
-      [role_id]
+      `SELECT rp.* FROM role_permissions rp
+       JOIN roles r ON r.id = rp.role_id
+       WHERE rp.role_id = $1 AND r.school_id = $2`,
+      [role_id, school_id]
     );
     return result.rows;
   }
 
-  // حذف علاقة
-  static async delete(id) {
+  // حذف علاقة (مع حماية المدرسة عبر الربط بجدول الأدوار)
+  static async delete(school_id, id) {
     const result = await pool.query(
-      `DELETE FROM role_permissions WHERE id = $1
-       RETURNING *`,
-      [id]
+      `DELETE FROM role_permissions rp
+       USING roles r
+       WHERE rp.role_id = r.id 
+         AND rp.id = $1 
+         AND r.school_id = $2
+       RETURNING rp.*`,
+      [id, school_id]
     );
     return result.rows[0];
   }

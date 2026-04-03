@@ -12,6 +12,9 @@ export const UserController = {
     const client = await pool.connect();
 
     try {
+      const schoolId = req.user?.school_id;
+      if (!schoolId) return res.status(401).json({ message: "غير مصرح" });
+
       const { full_name, username, email, phone, password, role_id } = req.body;
 
       if (!full_name || !username || !email || !password || !role_id) {
@@ -22,10 +25,20 @@ export const UserController = {
 
       await client.query("BEGIN");
 
-      // التأكد من عدم التكرار
+      // 🛡️ فحص أمني: التأكد من أن الدور يتبع لنفس المدرسة
+      const roleCheck = await client.query(
+        "SELECT id FROM roles WHERE id=$1 AND school_id=$2", 
+        [role_id, schoolId]
+      );
+      if (roleCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ message: "الدور غير موجود أو لا يتبع لهذه المدرسة" });
+      }
+
+      // التأكد من عدم التكرار داخل نفس المدرسة
       const dup = await client.query(
-        "SELECT id FROM users WHERE email = $1 OR username = $2",
-        [email, username]
+        "SELECT id FROM users WHERE (email = $1 OR username = $2) AND school_id = $3",
+        [email, username, schoolId]
       );
       if (dup.rows.length > 0) {
         await client.query("ROLLBACK");
@@ -36,11 +49,11 @@ export const UserController = {
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // إضافة المستخدم
+      // إضافة المستخدم مع ربطه بالمدرسة
       const userRes = await client.query(
         `
-        INSERT INTO users (name, username, email, phone, password, status)
-        VALUES ($1, $2, $3, $4, $5, 'active')
+        INSERT INTO users (school_id, name, username, email, phone, password_hash, status)
+        VALUES ($1, $2, $3, $4, $5, $6, 'active')
         RETURNING
           id,
           name      AS full_name,
@@ -49,7 +62,7 @@ export const UserController = {
           phone,
           status
       `,
-        [full_name, username, email, phone, hashedPassword]
+        [schoolId, full_name, username, email, phone, hashedPassword]
       );
 
       const newUserId = userRes.rows[0].id;
@@ -78,10 +91,13 @@ export const UserController = {
   },
 
   // ------------------------------------
-  // جلب جميع المستخدمين (مع أدوارهم)
+  // جلب جميع المستخدمين (مع أدوارهم) الخاصة بالمدرسة
   // ------------------------------------
   async getAll(req, res) {
     try {
+      const schoolId = req.user?.school_id;
+      if (!schoolId) return res.status(401).json({ message: "غير مصرح" });
+
       const result = await pool.query(
         `
         SELECT
@@ -96,8 +112,10 @@ export const UserController = {
         FROM users u
         LEFT JOIN user_roles ur ON u.id = ur.user_id
         LEFT JOIN roles      r  ON ur.role_id = r.id
+        WHERE u.school_id = $1
         ORDER BY u.id ASC
-      `
+      `,
+        [schoolId]
       );
 
       return res.json(result.rows);
@@ -112,6 +130,9 @@ export const UserController = {
   // ------------------------------------
   async getOne(req, res) {
     try {
+      const schoolId = req.user?.school_id;
+      if (!schoolId) return res.status(401).json({ message: "غير مصرح" });
+
       const { id } = req.params;
       const result = await pool.query(
         `
@@ -127,9 +148,9 @@ export const UserController = {
         FROM users u
         LEFT JOIN user_roles ur ON u.id = ur.user_id
         LEFT JOIN roles      r  ON ur.role_id = r.id
-        WHERE u.id = $1
+        WHERE u.id = $1 AND u.school_id = $2
       `,
-        [id]
+        [id, schoolId]
       );
 
       if (!result.rows.length) {
@@ -145,12 +166,14 @@ export const UserController = {
 
   // ------------------------------------
   // تحديث مستخدم + الدور
-  // body: { full_name, username, email, phone, password?, role_id }
   // ------------------------------------
   async update(req, res) {
     const client = await pool.connect();
 
     try {
+      const schoolId = req.user?.school_id;
+      if (!schoolId) return res.status(401).json({ message: "غير مصرح" });
+
       const userId = req.params.id;
       const { full_name, username, email, phone, password, role_id } = req.body;
 
@@ -162,24 +185,37 @@ export const UserController = {
 
       await client.query("BEGIN");
 
+      // 🛡️ فحص أمني: التأكد أن الدور والمستخدم يتبعان لنفس المدرسة
+      const roleCheck = await client.query("SELECT id FROM roles WHERE id=$1 AND school_id=$2", [role_id, schoolId]);
+      if (roleCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ message: "الدور غير موجود أو لا يتبع لمدرستك" });
+      }
+
+      const userCheck = await client.query("SELECT id FROM users WHERE id=$1 AND school_id=$2", [userId, schoolId]);
+      if (userCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ message: "المستخدم غير موجود أو لا يتبع لمدرستك" });
+      }
+
       if (password && password.trim() !== "") {
         const hashedPassword = await bcrypt.hash(password, 10);
         await client.query(
           `
           UPDATE users
-          SET name = $1, username = $2, email = $3, phone = $4, password = $5
-          WHERE id = $6
+          SET name = $1, username = $2, email = $3, phone = $4, password_hash = $5
+          WHERE id = $6 AND school_id = $7
         `,
-          [full_name, username, email, phone, hashedPassword, userId]
+          [full_name, username, email, phone, hashedPassword, userId, schoolId]
         );
       } else {
         await client.query(
           `
           UPDATE users
           SET name = $1, username = $2, email = $3, phone = $4
-          WHERE id = $5
+          WHERE id = $5 AND school_id = $6
         `,
-          [full_name, username, email, phone, userId]
+          [full_name, username, email, phone, userId, schoolId]
         );
       }
 
@@ -211,13 +247,23 @@ export const UserController = {
     const client = await pool.connect();
 
     try {
+      const schoolId = req.user?.school_id;
+      if (!schoolId) return res.status(401).json({ message: "غير مصرح" });
+
       const userId = req.params.id;
 
       await client.query("BEGIN");
+      
+      const userCheck = await client.query("SELECT id FROM users WHERE id=$1 AND school_id=$2", [userId, schoolId]);
+      if (userCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ message: "المستخدم غير موجود أو لا يتبع لمدرستك" });
+      }
+
       await client.query(`DELETE FROM user_roles WHERE user_id = $1`, [
         userId,
       ]);
-      await client.query(`DELETE FROM users WHERE id = $1`, [userId]);
+      await client.query(`DELETE FROM users WHERE id = $1 AND school_id = $2`, [userId, schoolId]);
       await client.query("COMMIT");
 
       return res.json({ message: "تم حذف المستخدم" });
@@ -232,8 +278,6 @@ export const UserController = {
 
   // ------------------------------------
   // صلاحيات القائمة للمستخدم الحالي
-  // GET /api/users/me/menu-permissions
-  // يرجّع: { permissions: ["admission.view_students", ...] }
   // ------------------------------------
   async getMyMenuPermissions(req, res) {
     try {
@@ -247,10 +291,10 @@ export const UserController = {
       }
 
       const payload = jwt.verify(token, process.env.JWT_SECRET);
-      // حسب التوكن عندك: jwt.sign({ id, role_id, role }, ...)
       const userId = payload.id || payload.user_id;
+      const schoolId = payload.school_id;
 
-      if (!userId) {
+      if (!userId || !schoolId) {
         return res.status(401).json({ message: "Invalid token payload" });
       }
 
@@ -262,10 +306,10 @@ export const UserController = {
         JOIN roles            r  ON r.id = ur.role_id
         JOIN role_permissions rp ON rp.role_id = r.id
         JOIN permissions      p  ON p.id = rp.permission_id
-        WHERE u.id = $1
+        WHERE u.id = $1 AND u.school_id = $2
         ORDER BY p.code
       `,
-        [userId]
+        [userId, schoolId]
       );
 
       const permissions = result.rows.map((row) => row.code);

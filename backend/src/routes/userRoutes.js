@@ -23,7 +23,7 @@ router.post(
   "/",
   authMiddleware,
   loadPermissions,
-  checkPermission("rbac.manage_usessrs"),
+  checkPermission("rbac.manage_users"),
   UserController.create
 );
 

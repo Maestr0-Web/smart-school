@@ -1,0 +1,86 @@
+<section id="admin-monthly-work" class="screen-section">
+    <div class="panel-header" style="margin-bottom: 20px;">
+        <h2 style="color: #fff; font-size: 20px;">
+            <i class="fas fa-clipboard-list" style="color: #3b82f6; margin-left: 8px;"></i>
+            تسجيل الأعمال الشهرية (إشراف الكنترول)
+        </h2>
+        <p style="color: #94a3b8; font-size: 13px; margin-top: 5px;">
+            مراقبة وتعديل التقييمات والأعمال الشهرية التي رصدها المعلمون.
+        </p>
+    </div>
+
+    <div class="panel" style="margin-bottom: 20px; padding: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+            <div>
+                <label style="color: #cbd5e1; font-size: 12px; margin-bottom: 5px; display: block;">المرحلة</label>
+                <select id="mw-stage" class="ta-input w-100" >
+                    <option value="">اختر المرحلة...</option>
+                </select>
+            </div>
+            <div>
+                <label style="color: #cbd5e1; font-size: 12px; margin-bottom: 5px; display: block;">الصف</label>
+                <select id="mw-grade" class="ta-input w-100" >
+                    <option value="">اختر الصف...</option>
+                </select>
+            </div>
+            <div>
+                <label style="color: #cbd5e1; font-size: 12px; margin-bottom: 5px; display: block;">الشعبة</label>
+                <select id="mw-section" class="ta-input w-100">
+                    <option value="">اختر الشعبة...</option>
+                </select>
+            </div>
+            <div>
+                <label style="color: #cbd5e1; font-size: 12px; margin-bottom: 5px; display: block;">المادة</label>
+                <select id="mw-subject" class="ta-input w-100">
+                    <option value="">اختر المادة...</option>
+                </select>
+            </div>
+            <div style="display: flex; align-items: flex-end;">
+                <button class="primary-btn w-100" onclick="fetchTeacherAssessments()" style="height: 42px;">
+                    <i class="fas fa-search"></i> جلب التقييمات
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="assessment-selection-area" class="panel" style="display: none; margin-bottom: 20px; padding: 20px; border-right: 4px solid #10b981;">
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <div style="flex-grow: 1;">
+                <label style="color: #cbd5e1; font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">التقييمات المتوفرة لهذه المادة:</label>
+                <select id="mw-assessment" class="ta-input w-100" >
+                    <option value="">اختر التقييم لاستعراض الدرجات...</option>
+                </select>
+            </div>
+            <div id="assessment-info" style="margin-top: 20px; color: #94a3b8; font-size: 13px; display: none;">
+                <span class="meta" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 5px 10px; border-radius: 4px;">
+                    الدرجة العظمى: <strong id="mw-max-score">0</strong>
+                </span>
+                <span class="meta" style="background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 5px 10px; border-radius: 4px; margin-right: 10px;">
+                    المنشئ: <strong id="mw-teacher-name">-</strong>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div id="grading-grid-area" class="panel table-responsive" style="display: none;">
+        <table class="tp-table" id="mw-grading-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px; text-align: center;">#</th>
+                    <th>اسم الطالب</th>
+                    <th style="width: 150px; text-align: center;">الدرجة</th>
+                    <th>ملاحظات الكنترول</th>
+                    <th style="width: 150px; text-align: center;">رُصدت بواسطة</th>
+                </tr>
+            </thead>
+            <tbody id="mw-grading-body">
+                </tbody>
+        </table>
+        
+        <div style="padding: 20px; text-align: left; background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.05);">
+            <button class="primary-btn" onclick="saveAdminGradesOverrides()" style="background: #10b981;">
+                <i class="fas fa-check-circle"></i> اعتماد وحفظ التعديلات
+            </button>
+        </div>
+    </div>
+</section>

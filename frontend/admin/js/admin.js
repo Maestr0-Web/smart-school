@@ -1,24 +1,112 @@
-// frontend/admin/js/admin.js (النسخة الموحّدة)
+// frontend/admin/js/admin.js
+// (نسخة موحّدة بعد التنظيف + إصلاح init + ✅ منع الطرد بسبب 403)
+// ملاحظة: أهم تعديل هنا هو: ✅ لا نسجّل خروج إلا عند 401 فقط
+
 console.log("admin.js loaded");
 
 // ==============================
 // إعدادات عامة / ثوابت
 // ==============================
-const API_BASE = "https://smart-school-backend-olz8.onrender.com/api";
+const API_BASE = "http://127.0.0.1:5000/api";
 const THEME_KEY = "smart_school_theme";
+
+// ✅ مهم: بعض الصفحات/الملفات تعتمد على window.API_BASE
+window.API_BASE = API_BASE;
 
 let currentUser = null;
 window.USER_PERMISSIONS = [];
 
+// ✅ Logout آمن: امسح token/user فقط (لا تمس بقية مفاتيح المشروع)
+function logoutToLogin(reason) {
+  console.warn("logoutToLogin:", reason || "");
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  // لا نستخدم href حتى لا يرجع بالباك
+  window.location.replace("/frontend/login/login.html");
+}
+
+// ✅ API helper عام (اختياري) — يفيدك لو حبيت تستخدمه بملفات أخرى
+window.apiFetchSafe = async function (path, opts = {}) {
+  const token = localStorage.getItem("token");
+  const url = path.startsWith("http") ? path : API_BASE + path;
+
+  const r = await fetch(url, {
+    ...opts,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(opts.headers || {}),
+    },
+  });
+
+  const text = await r.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
+
+  // ✅ Logout فقط عند 401
+  if (r.status === 401) {
+    logoutToLogin("401 Unauthorized from API: " + path);
+    throw new Error("انتهت الجلسة — سجل الدخول من جديد");
+  }
+
+  // ✅ 403 ممنوع = لا تعمل logout
+  if (!r.ok) {
+    const msg = (data && (data.error || data.message)) || `API ${r.status}`;
+    const e = new Error(msg);
+    e.status = r.status;
+    e.payload = data;
+    throw e;
+  }
+
+  return data;
+};
+// ✅ دالة تحديث شعار واسم المدرسة في الهيدر (عالمية)
+window.setupSchoolBranding = function() {
+    const userStr = localStorage.getItem("user");
+    if (!userStr) return;
+    
+    try {
+        const user = JSON.parse(userStr);
+        // بحث ذكي عن الاسم والشعار
+        const schoolName = user.school_name_ar || user.school?.name_ar || "Smart School";
+        const logoUrl = user.logo_url || user.school?.logo_url;
+
+        const nameEl = document.getElementById('real-school-name');
+        const logoImg = document.getElementById('real-school-logo');
+        const logoText = document.getElementById('default-logo-text');
+
+        if (nameEl) nameEl.textContent = schoolName;
+
+        if (logoImg && logoUrl) {
+            const SERVER_URL = window.API_BASE.replace('/api', '');
+            const finalUrl = logoUrl.startsWith('http') ? logoUrl : (SERVER_URL + logoUrl);
+            
+            logoImg.src = finalUrl;
+            logoImg.style.display = 'block';
+            if (logoText) logoText.style.display = 'none';
+        }
+    } catch (e) {
+        console.error("Error setting up branding:", e);
+    }
+};
+
+// تشغيلها فور تحميل الملف لكي يظهر الشعار عند فتح الصفحة
+document.addEventListener("DOMContentLoaded", () => {
+    window.setupSchoolBranding();
+});
 // ==============================
-// 🛡 حماية لوحة الأدمن + تعبئة بيانات المستخدم
+// 🛡 حماية لوحة الأدمن + تعبئة بيانات المستخدم الأساسية
 // ==============================
 (function authGuard() {
   const token = localStorage.getItem("token");
   const userStr = localStorage.getItem("user");
 
   if (!token || !userStr) {
-    window.location.href = "/frontend/login/login.html";
+    logoutToLogin("Missing token/user");
     return;
   }
 
@@ -35,7 +123,7 @@ window.USER_PERMISSIONS = [];
     const role =
       currentUser.role || currentUser.role_name || currentUser.roleName || "";
 
-    // ⭐️ أهم تعديل: لو عندي صلاحيات داخل الـ user استخدمها مباشرة
+    // ⭐️ لو عندي صلاحيات داخل الـ user استخدمها مباشرة
     if (Array.isArray(currentUser.permissions)) {
       window.USER_PERMISSIONS = currentUser.permissions;
       console.log(
@@ -53,7 +141,7 @@ window.USER_PERMISSIONS = [];
     if (roleEl) roleEl.textContent = role || "حساب إداري";
     if (avatarLetter) avatarLetter.textContent = name.charAt(0) || "أ";
 
-    // إيميل في فورم تغيير البريد
+    // إيميل في فورم تغيير البريد (لو موجود في هذه الواجهة)
     const currentEmailInput = document.getElementById("currentEmail");
     if (currentEmailInput && email) currentEmailInput.value = email;
 
@@ -67,6 +155,7 @@ window.USER_PERMISSIONS = [];
     if (profileRole) profileRole.textContent = role || "حساب إداري";
   } catch (e) {
     console.warn("Cannot parse stored user:", e);
+    logoutToLogin("Bad stored user JSON");
   }
 })();
 
@@ -154,12 +243,16 @@ const PAGE_FILE_MAP = {
   termGrades: "termGrades",
   finalGrades: "finalGrades",
   studentStats: "studentStats",
+  settingschool: "settingschool",
+  feesSettings: "feesSettings",
 };
 
 window.loadPage = async function (pageKey) {
   const container = getPageContainer();
   if (!container) {
-    console.warn("لا يوجد حاوية لعرض الصفحات (screen-page-content أو content).");
+    console.warn(
+      "لا يوجد حاوية لعرض الصفحات (screen-page-content أو content)."
+    );
     return;
   }
 
@@ -174,18 +267,19 @@ window.loadPage = async function (pageKey) {
 
     if (!res.ok) {
       container.innerHTML = `
-        <div style="padding:1rem; color:#c00; text-align:center;">
-          <h3>تعذر تحميل الصفحة</h3>
-          <p>الملف: <code>${url}</code></p>
-          <p>تأكد أنك أنشأت هذا الملف داخل مجلد <code>frontend/admin/pages</code>.</p>
-        </div>
-      `;
+          <div style="padding:1rem; color:#c00; text-align:center;">
+            <h3>تعذر تحميل الصفحة</h3>
+            <p>الملف: <code>${url}</code></p>
+            <p>تأكد أنك أنشأت هذا الملف داخل مجلد <code>frontend/admin/pages</code>.</p>
+          </div>
+        `;
       return;
     }
 
     const html = await res.text();
     container.innerHTML = html;
 
+    // ✅ لو عندك تبويبات RBAC
     if (window.RBAC_tabs) {
       window.RBAC_tabs.activateByPage(normalizedKey);
     }
@@ -194,21 +288,96 @@ window.loadPage = async function (pageKey) {
       window.RBAC.onPageLoaded(normalizedKey);
     }
 
+    // ✅ تهيئة صفحات تحتاج init بعد الحقن
+    try {
+      if (
+        normalizedKey === "feesPay" &&
+        typeof window.initFeesPayPage === "function"
+      ) {
+        requestAnimationFrame(() => window.initFeesPayPage());
+      }
+
+      if (
+        normalizedKey === "feesReports" &&
+        typeof window.initFeesReportsPage === "function"
+      ) {
+        requestAnimationFrame(() => window.initFeesReportsPage());
+      }
+// تأكد من وضع هذا السطر بعد كود إظهار الواجهة مباشرة
+if (window.attendanceReports) {
+    window.attendanceReports.init();
+}
+      // ✅ weeklySchedule
+      if (
+        normalizedKey === "weeklySchedule" &&
+        typeof window.initWeeklySchedule === "function"
+      ) {
+        requestAnimationFrame(() => window.initWeeklySchedule());
+      }
+      if (
+        normalizedKey === "inbox" &&
+        typeof window.initAdminInboxPage === "function"
+      ) {
+        requestAnimationFrame(() => window.initAdminInboxPage());
+      }
+      if (
+        normalizedKey === "notifyLog" &&
+        typeof window.initAdminNotificationsLogPage === "function"
+      ) {
+        requestAnimationFrame(() => window.initAdminNotificationsLogPage());
+      }
+      if (
+        normalizedKey === "createNotify" &&
+        typeof window.initAdminNotificationSendPage === "function"
+      ) {
+        requestAnimationFrame(() => window.initAdminNotificationSendPage());
+      }
+
+      // ✅ examSchedule (جاهز للمستقبل)
+      if (
+        normalizedKey === "examSchedule" &&
+        typeof window.initExamSchedule === "function"
+      ) {
+        requestAnimationFrame(() => window.initExamSchedule());
+      }
+      if (
+        normalizedKey === "feespay" &&
+        typeof window.initFeesPayPage === "function"
+      ) {
+        requestAnimationFrame(() => window.initFeesPayPage());
+      }
+      if (
+        normalizedKey === "feesReports" &&
+        typeof window.initFeesReportsPage === "function"
+      ) {
+        requestAnimationFrame(() => window.initFeesReportsPage());
+      }
+      if (
+        normalizedKey === "monthlyWork" &&
+        typeof window.initMonthlyWorkScreen === "function"
+      ) {
+        requestAnimationFrame(() => window.initMonthlyWorkScreen());
+      }
+    } catch (e) {
+      console.warn("Page init failed:", normalizedKey, e);
+    }
+
     window.scrollTo(0, 0);
   } catch (err) {
     console.error("Error loading page:", err);
     container.innerHTML = `
-      <p style="padding:1rem; color:#c00; text-align:center;">
-        حدث خطأ أثناء تحميل المحتوى.
-      </p>
-    `;
+        <p style="padding:1rem; color:#c00; text-align:center;">
+          حدث خطأ أثناء تحميل المحتوى.
+        </p>
+      `;
   }
 };
 
 // تبويبات RBAC
 window.RBAC_tabs = {
   open(el, pageKey) {
-    if (event && event.preventDefault) {
+    // ملاحظة: بعض المتصفحات توفر event كمتغير عالمي
+    if (typeof event !== "undefined" && event && event.preventDefault) {
       event.preventDefault();
     }
 
@@ -281,9 +450,19 @@ async function fetchMenuPermissions() {
       },
     });
 
+    // ✅ 401 فقط = سجّل خروج
+    if (res.status === 401) {
+      logoutToLogin("401 from menu-permissions");
+      return;
+    }
+
+    // ✅ 403 ممنوع: لا تسجّل خروج — فقط طبّق الإخفاء بناءً على الموجود
     if (!res.ok) {
       console.warn("menu-permissions error:", res.status);
-      return; // لا نلمس الصلاحيات الحالية، فقط نطبع الخطأ
+      // إذا ما عندنا صلاحيات أصلاً، خليها فاضية وطبّق الإخفاء
+      if (!Array.isArray(window.USER_PERMISSIONS)) window.USER_PERMISSIONS = [];
+      applyMenuPermissions();
+      return;
     }
 
     const data = await res.json();
@@ -294,6 +473,7 @@ async function fetchMenuPermissions() {
     applyMenuPermissions();
   } catch (err) {
     console.warn("Failed to load menu permissions:", err);
+    // لا logout هنا
   }
 }
 
@@ -309,81 +489,37 @@ async function fetchMenuPermissions() {
     return document.querySelectorAll(selector);
   }
 
-  // 🔧 دالة مساعدة لطلبات تغيير الباسورد/الإيميل
-  async function profileApiRequest(subPath, payload) {
-    const token = localStorage.getItem("token");
-    const headers = { "Content-Type": "application/json" };
-    if (token) headers.Authorization = `Bearer ${token}`;
-
-    try {
-      const res = await fetch(`${API_BASE}/profile${subPath}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify(payload),
-      });
-
-      if (res.status === 401) {
-        let msg = "تم انتهاء الجلسة، الرجاء تسجيل الدخول من جديد";
-        try {
-          const txt = await res.text();
-          try {
-            const json = JSON.parse(txt);
-            msg = json.message || msg;
-          } catch (_) {
-            if (txt && txt.trim()) msg = txt;
-          }
-        } catch (_) {}
-
-        alert(msg);
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/frontend/login/login.html";
-        return null;
-      }
-
-      const txt = await res.text();
-
-      if (!res.ok) {
-        let msg = "حدث خطأ في الخادم";
-        try {
-          const json = JSON.parse(txt);
-          msg = json.message || msg;
-        } catch (_) {}
-        throw new Error(msg);
-      }
-
-      if (!txt) return null;
-      try {
-        return JSON.parse(txt);
-      } catch (_) {
-        return null;
-      }
-    } catch (err) {
-      console.error("Profile API error:", err);
-      alert(`خطأ: ${err.message}`);
-      throw err;
-    }
-  }
-
   /* =========================
-     تبديل الشاشات
+    تبديل الشاشات
   ========================== */
   function switchScreen(targetId) {
     const screens = $all(".screen");
     const navButtons = $all(".bottom-item[data-target]");
+    const hero =
+      document.getElementById("home-hero") || document.querySelector(".hero");
 
+    // ✅ (1) تفعيل الشاشة المطلوبة
     screens.forEach((screen) => {
       screen.classList.toggle("is-active", screen.id === targetId);
     });
 
+    // ✅ (2) تفعيل زر الناف السفلي
     navButtons.forEach((btn) => {
       const target = btn.getAttribute("data-target");
       btn.classList.toggle("bottom-item--active", target === targetId);
     });
 
+    // ✅ (3) إظهار الملخص التنفيذي فقط في الرئيسية
+    const isHome = targetId === "screen-dashboard";
+    if (hero) hero.classList.toggle("is-hidden", !isHome);
+
+    // ✅ حفظ الشاشة الحالية
     if (window.Dashboard) {
       window.Dashboard.currentScreenId = targetId;
     }
+
+    // ✅ يرجع لأعلى
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   window.Dashboard = {
@@ -432,11 +568,13 @@ async function fetchMenuPermissions() {
         attendanceReports: "تقارير الحضور",
         feesPay: "سداد الرسوم",
         feesReports: "تقارير الرسوم",
+        feesSettings: "اعدادات الرسوم",
         studentData: "بيانات الطلاب",
         staffData: "بيانات الموظفين",
         termGrades: "تقارير الدرجات الفصلية",
         finalGrades: "تقارير الدرجات النهائية",
         studentStats: "إحصائيات الطلاب",
+        settingschool: "إعدادات المدرسة",
         "rbac-users": "المستخدمون",
         "rbac-roles": "الأدوار",
         "rbac-permissions": "الصلاحيات",
@@ -447,7 +585,7 @@ async function fetchMenuPermissions() {
   };
 
   /* =========================
-     الشريط السفلي
+    الشريط السفلي
   ========================== */
   function initBottomNav() {
     $all(".bottom-item[data-target]").forEach((btn) => {
@@ -468,7 +606,7 @@ async function fetchMenuPermissions() {
   }
 
   /* =========================
-     شيت القائمة الرئيسية
+    شيت القائمة الرئيسية
   ========================== */
   function initMainMenuSheet() {
     const sheet = $("#main-menu-sheet");
@@ -502,7 +640,7 @@ async function fetchMenuPermissions() {
   }
 
   /* =========================
-     منيو الحساب + المودالات
+    منيو الحساب + المودالات (فتح/إغلاق فقط)
   ========================== */
   function initAccountMenu() {
     const toggle = $("#account-menu-toggle");
@@ -604,109 +742,14 @@ async function fetchMenuPermissions() {
 
     overlay.addEventListener("click", closeAllModals);
 
-    // 🔑 تغيير كلمة المرور (اتصال حقيقي بالـ API)
-    const changePasswordForm = $("#changePasswordForm");
-    if (changePasswordForm) {
-      changePasswordForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const current = $("#currentPassword")?.value.trim();
-        const np = $("#newPassword")?.value.trim();
-        const cp = $("#confirmNewPassword")?.value.trim();
-
-        if (!current || !np || !cp) {
-          alert("الرجاء تعبئة جميع الحقول.");
-          return;
-        }
-        if (np !== cp) {
-          alert("كلمة المرور الجديدة وتأكيدها غير متطابقتين.");
-          return;
-        }
-        if (np.length < 6) {
-          alert("يفضل أن تكون كلمة المرور 6 أحرف/أرقام على الأقل.");
-          return;
-        }
-
-        try {
-          await profileApiRequest("/change-password", {
-            currentPassword: current,
-            newPassword: np,
-          });
-
-          alert("✅ تم تغيير كلمة المرور بنجاح، سيتم تسجيل خروجك الآن.");
-          changePasswordForm.reset();
-          closeAllModals();
-
-          // تسجيل خروج محلي
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          window.location.href = "/frontend/login/login.html";
-        } catch (err) {
-          // الخطأ تم عرضه داخل profileApiRequest
-        }
-      });
-    }
-
-    // 📧 تغيير البريد الإلكتروني (اتصال حقيقي بالـ API)
-    const changeEmailForm = $("#changeEmailForm");
-    if (changeEmailForm) {
-      changeEmailForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        let newEmail = $("#newEmail")?.value.trim();
-
-        if (!newEmail) {
-          alert("الرجاء إدخال بريد جديد.");
-          return;
-        }
-
-        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(newEmail)) {
-          alert("صيغة البريد الإلكتروني غير صحيحة.");
-          return;
-        }
-
-        try {
-          const data = await profileApiRequest("/change-email", { newEmail });
-
-          if (data && data.email) {
-            newEmail = data.email;
-          }
-
-          alert("✅ تم تحديث البريد الإلكتروني بنجاح.");
-
-          // تحديث localStorage.user
-          try {
-            const userStr = localStorage.getItem("user");
-            const oldUser = userStr ? JSON.parse(userStr) : {};
-            const updatedUser = { ...oldUser, email: newEmail };
-            localStorage.setItem("user", JSON.stringify(updatedUser));
-            currentUser = updatedUser;
-          } catch (_) {}
-
-          // تحديث الحقل الحالي في المودال
-          const currentEmailInput = document.getElementById("currentEmail");
-          if (currentEmailInput) currentEmailInput.value = newEmail;
-
-          changeEmailForm.reset();
-          closeAllModals();
-        } catch (err) {
-          // الخطأ تم عرضه داخل profileApiRequest
-        }
-      });
-    }
-
-    const logoutBtn = document.getElementById("logout-btn");
-    if (logoutBtn) {
-      logoutBtn.addEventListener("click", () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/frontend/login/login.html";
-      });
-    }
+    // 🔑 منطق تغيير كلمة المرور + البريد + تسجيل الخروج
+    // أصبح في الملف المشترك:
+    // /frontend/shared/profile-account.js
+    // هنا فقط فتح/إغلاق المودالات.
   }
 
   /* =========================
-     تبديل الثيم (نهاري / ليلي)
+    تبديل الثيم (نهاري / ليلي)
   ========================== */
   function applyTheme(theme) {
     const body = document.body;
@@ -719,6 +762,7 @@ async function fetchMenuPermissions() {
       body.classList.remove("theme-dark");
     }
 
+    // (اختياري) تغيير شكل الزر
     if (themeBtn) {
       themeBtn.textContent = theme === "dark" ? "☀️" : "🌙";
     }
@@ -756,166 +800,310 @@ async function fetchMenuPermissions() {
   }
 
   /* =========================
-     مركز الأوامر (بحث عام)
+    مركز الأوامر (بحث عام)
+  ========================== */
+  
+  /* =========================
+    مركز الأوامر (بحث عام)
   ========================== */
   function initCommandCenter() {
     const input = document.getElementById("command-input");
     if (!input) return;
 
-    // أوامر جاهزة (اختصارات)
     const COMMANDS = [
-      {
-        keywords: ["الطلاب", "عرض الطلاب", "قائمة الطلاب"],
-        run() {
-          if (window.Dashboard) {
-            window.Dashboard.openPage("studentsList", "عرض الطلاب");
-          }
-        },
-      },
-      {
-        keywords: ["تسجيل طالب", "طالب جديد", "تسجيل الطلاب"],
-        run() {
-          if (window.Dashboard) {
-            window.Dashboard.openPage("studentRegister", "تسجيل طالب جديد");
-          }
-        },
-      },
-      {
-        keywords: ["الرسوم", "سداد الرسوم", "المالية"],
-        run() {
-          if (window.Dashboard) {
-            window.Dashboard.switchScreen("screen-fees");
-          }
-        },
-      },
-      {
-        keywords: ["الحضور", "الغياب", "جداول الحصص", "الجدول"],
-        run() {
-          if (window.Dashboard) {
-            window.Dashboard.switchScreen("screen-timetable");
-          }
-        },
-      },
-      {
-        keywords: ["التقارير", "تقرير", "إحصاء", "إحصائيات"],
-        run() {
-          if (window.Dashboard) {
-            window.Dashboard.switchScreen("screen-reports");
-          }
-        },
-      },
-      {
-        keywords: ["مستخدم", "مستخدمين", "صلاحيات", "rbac", "الأدوار"],
-        run() {
-          if (window.Dashboard) {
-            window.Dashboard.switchScreen("screen-rbac");
-          }
-        },
-      },
-      {
-        keywords: ["الحساب", "البريد", "كلمة المرور", "الملف الشخصي"],
-        run() {
-          if (window.Dashboard) {
-            window.Dashboard.switchScreen("screen-account");
-          }
-        },
-      },
-      {
-        keywords: ["الرئيسية", "الصفحة الرئيسية", "dashboard", "home"],
-        run() {
-          if (window.Dashboard) {
-            window.Dashboard.switchScreen("screen-dashboard");
-          }
-        },
-      },
+      { keywords: ["الطلاب", "عرض الطلاب"], run() { if (window.Dashboard) window.Dashboard.openPage("studentsList", "عرض الطلاب"); } },
+      { keywords: ["الرسوم", "سداد"], run() { if (window.Dashboard) window.Dashboard.switchScreen("screen-fees"); } },
+      { keywords: ["الحضور", "الغياب", "جداول"], run() { if (window.Dashboard) window.Dashboard.switchScreen("screen-timetable"); } },
+      { keywords: ["التقارير", "إحصاء"], run() { if (window.Dashboard) window.Dashboard.switchScreen("screen-reports"); } },
+      { keywords: ["الرئيسية", "dashboard"], run() { if (window.Dashboard) window.Dashboard.switchScreen("screen-dashboard"); } },
     ];
 
-    function executeCommand(query) {
-      const q = (query || "").trim().toLowerCase();
-      if (!q) return;
-
-      // 1) محاولة مطابقة الأوامر
-      for (const cmd of COMMANDS) {
-        const match = cmd.keywords.some((k) => {
-          const kk = k.toLowerCase();
-          return q.includes(kk) || kk.includes(q);
-        });
-
-        if (match) {
-          cmd.run();
-          return;
-        }
-      }
-
-      // 2) بحث عام في النصوص داخل الشاشة الحالية
-      const activeScreen =
-        document.querySelector(".screen.is-active") || document;
-      const elements = activeScreen.querySelectorAll("*");
-      let foundEl = null;
-
-      for (const el of elements) {
-        if (el.children.length === 0) {
-          const text = (el.textContent || "").trim().toLowerCase();
-          if (text && text.includes(q)) {
-            foundEl = el;
-            break;
-          }
-        }
-      }
-
-      if (foundEl) {
-        foundEl.scrollIntoView({ behavior: "smooth", block: "center" });
-        foundEl.classList.add("search-hit");
-        setTimeout(() => foundEl.classList.remove("search-hit"), 1500);
-      } else {
-        alert("لم يتم العثور على شيء يطابق: " + query);
-      }
-    }
-
-    // تنفيذ الأمر عند الضغط على Enter
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
-        executeCommand(input.value);
-        input.select();
-      }
-    });
-
-    // اختصار Ctrl+K أو ⌘K للتركيز على حقل البحث
-    document.addEventListener("keydown", (e) => {
-      const isMac = navigator.platform.toUpperCase().includes("MAC");
-      const hotkeyPressed =
-        (!isMac && e.ctrlKey && e.key.toLowerCase() === "k") ||
-        (isMac && e.metaKey && e.key.toLowerCase() === "k");
-
-      if (hotkeyPressed) {
-        e.preventDefault();
-        input.focus();
+        const q = input.value.trim().toLowerCase();
+        for (const cmd of COMMANDS) {
+          if (cmd.keywords.some(k => q.includes(k))) { cmd.run(); return; }
+        }
+        alert("لم يتم العثور على أمر يطابق: " + q);
         input.select();
       }
     });
   }
 
-  /* =========================
-     تهيئة عامة
-  ========================== */
-  document.addEventListener("DOMContentLoaded", () => {
-    initBottomNav();
-    initMainMenuSheet();
-    initAccountMenu();
-    initModals();
-    initThemeToggle();
-    initCommandCenter();
-    initClock();
+  // ==========================================
+  // 🦅 نظام عين الصقر: الدالة الذكية لفتح صفحة الأذونات (إصلاح الزر)
+  // ==========================================
+// ==========================================
+  // 🦅 نظام عين الصقر: الدالة الذكية لفتح صفحة الأذونات
+  // ==========================================
+ // ==========================================
+  // 🦅 نظام عين الصقر: الدالة الذكية لفتح المودال مباشرة!
+  // ==========================================
+// ==========================================
+  // 🦅 نظام عين الصقر: الدالة الذكية لفتح المودال مباشرة!
+  // ==========================================
+ // ==========================================
+  // 🦅 نظام عين الصقر: الدالة الذكية لفتح المودال بشكل متسلسل ومضمون
+  // ==========================================
+// ==========================================
+  // 🦅 نظام عين الصقر: الدالة الذكية لفتح المودال (النسخة المتتبعة - Smart Tracker)
+  // ==========================================
+// ==========================================
+  // 🦅 نظام عين الصقر: الدالة الذكية لفتح المودال (نسخة الاستهداف المباشر المضمونة)
+  // ==========================================
+ // ==========================================
+  // 🦅 نظام عين الصقر: النسخة المصححة لفتح ملف manualAttendance
+  // ==========================================
+  // ==========================================
+  // 🦅 نظام عين الصقر: النسخة الكاملة والمحسنة لفتح المودال في المنتصف
+  // ==========================================
+ // ==========================================
+  // 🦅 نظام عين الصقر: النسخة النهائية لحل مشكلة السكرول
+  // ==========================================
+window.openTeacherPermitsPage = function() {
+    // 1. إخفاء صندوق الإنذار
+    const alertBox = document.getElementById("admin-eagle-eye-alerts");
+    if (alertBox) alertBox.style.display = "none";
 
-    // ⭐️ هنا نرجّع سلوك المشروع القديم:
-    // لو عندي صلاحيات من الـ user → استخدمها مباشرة
-    if (Array.isArray(window.USER_PERMISSIONS) && window.USER_PERMISSIONS.length) {
-      applyMenuPermissions();
-    } else {
-      // لو ما في صلاحيات، نحاول نجيبها من الـ API
-      fetchMenuPermissions();
+    // 2. الانتقال لصفحة الأذونات
+    if (window.Dashboard && typeof window.Dashboard.openPage === "function") {
+        window.Dashboard.openPage("manualAttendance", "أذونات المعلمين");
     }
 
-    switchScreen("screen-dashboard");
-  });
+    // 3. الصائد الذكي لمراقبة الجدول
+    let attempts = 0;
+    let checkExist = setInterval(() => {
+        attempts++;
+        if (attempts > 50) { clearInterval(checkExist); return; }
+
+        const statusSelect = document.getElementById("tp-status");
+        const listEl = document.getElementById("tp-list");
+        const refreshBtn = document.getElementById("tp-refresh");
+
+        if (statusSelect && listEl && refreshBtn) {
+            if (listEl.innerHTML.includes("جاري تحميل")) return; 
+
+            clearInterval(checkExist);
+            statusSelect.value = "approved";
+            refreshBtn.click();
+
+            // 4. انتظار ظهور البطاقات وفتح المودال
+            setTimeout(() => {
+                let cardCheck = setInterval(() => {
+                    if (listEl.innerHTML.includes("جاري تحميل")) return;
+                    clearInterval(cardCheck);
+                    
+                    const detailsBtn = listEl.querySelector(".tp-card button[data-action='open']");
+                    if (detailsBtn) {
+                        // 💥 فتح المودال
+                        detailsBtn.click(); 
+
+                        // 🌟 الحل الجذري للسكرول: الصعود الفوري للقمة الصفرية
+                        setTimeout(() => {
+                            window.scrollTo(0, 0);
+                            document.documentElement.scrollTop = 0;
+                            document.body.scrollTop = 0;
+                        }, 100); 
+
+                    }
+                }, 200);
+            }, 500);
+        }
+    }, 200);
+};
+  // ==========================================
+  // 🦅 نظام عين الصقر: بناء الصندوق الأحمر
+// ==========================================
+  // 🦅 نظام عين الصقر: بناء الصندوق الأحمر (ذكي يفرق بين الرفض وانتهاء الوقت)
+  // ==========================================
+  window.refreshEagleEye = async function() {
+    try {
+      const res = await window.apiFetchSafe("/admin/teacher-permits/alerts/rejected-subs");
+      const alerts = res?.alerts || [];
+      
+      let alertBox = document.getElementById("admin-eagle-eye-alerts");
+      if (!alertBox) {
+        alertBox = document.createElement("div");
+        alertBox.id = "admin-eagle-eye-alerts";
+        document.querySelector("main").prepend(alertBox); 
+      }
+
+      if (alerts.length > 0) {
+        // 🟢 فرز نوع المشاكل لكي نكتب نصاً دقيقاً للإدارة
+        const expiredCount = alerts.filter(a => a.status === 'expired').length;
+        const rejectedCount = alerts.filter(a => a.status === 'rejected').length;
+
+        let alertTitle = "";
+        let alertDesc = "";
+        let iconClass = "ri-alarm-warning-fill";
+
+        if (expiredCount > 0 && rejectedCount > 0) {
+          alertTitle = `تنبيه عاجل! (${rejectedCount} رفض | ${expiredCount} تجاهل وانتهى وقتهم ⏱️)`;
+          alertDesc = "بعض المعلمين اعتذروا صراحة، وآخرون انتهى الوقت المسموح لهم دون أي رد. الرجاء التدخل السريع.";
+        } else if (expiredCount > 0) {
+          alertTitle = `انتهى الوقت! (${expiredCount} طلب احتياط متجاهل ⏱️)`;
+          alertDesc = "انتهت المهلة الزمنية التي حددتها لبعض المعلمين دون أي استجابة منهم. الرجاء الدخول وتعيين بدلاء.";
+          iconClass = "ri-timer-flash-line"; // تغيير الأيقونة لتناسب الوقت
+        } else {
+          alertTitle = `تحذير إداري هام! (${rejectedCount} حصص احتياط تم رفضها)`;
+          alertDesc = "بعض المعلمين المكلفين بالاحتياط اعتذروا عن التغطية صراحة. الرجاء تعيين بدلاء فوراً لضمان سير الحصص.";
+        }
+
+        let html = `
+          <div style="background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; padding: 15px 20px; border-radius: 8px; margin: 15px; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <h3 style="margin: 0 0 5px 0; display: flex; align-items: center; gap: 8px; font-size:1.1rem;">
+                <i class="${iconClass}" style="font-size: 1.5rem; animation: pulse 2s infinite;"></i> 
+                ${alertTitle}
+              </h3>
+              <p style="margin: 0; font-size: 0.95rem; opacity: 0.9;">
+                ${alertDesc}
+              </p>
+            </div>
+            <button onclick="window.openTeacherPermitsPage()" style="background: white; color: #b91c1c; border: none; padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap;">
+              <i class="ri-arrow-left-circle-line"></i> الذهاب للأذونات للحل
+            </button>
+          </div>`;
+        alertBox.innerHTML = html;
+        alertBox.style.display = "flex";
+      } else {
+        alertBox.style.display = "none";
+      }
+    } catch (e) {
+      console.warn("Eagle Eye Error:", e.message);
+    }
+  };
+
+  /* =========================
+    تهيئة عامة + استقبال السحر الحي
+  ========================== */
+
+// ==========================================
+// 🔊 نظام التنبيهات الصوتية للإدارة
+// ==========================================
+// ==========================================
+// 🔊 نظام التنبيهات الصوتية للإدارة
+// ==========================================
+window.playAdminAlertSound = function(type) {
+  try {
+    let soundUrl = "";
+    
+    if (type === "success") {
+      soundUrl = "https://actions.google.com/sounds/v1/alarms/spaceship_alarm.ogg"; 
+    } else if (type === "error") {
+      soundUrl = "https://actions.google.com/sounds/v1/alarms/beep_short.ogg"; 
+    }
+
+    if (!soundUrl) return;
+
+    const audio = new Audio(soundUrl);
+    audio.volume = 0.7; 
+    
+    audio.play().catch(e => {
+      console.warn("🔇 المتصفح منع تشغيل الصوت تلقائياً:", e.message);
+    });
+  } catch (err) {
+    console.error("خطأ في تشغيل الصوت:", err);
+  }
+};
+
+/* =========================
+  تهيئة عامة + استقبال السحر الحي
+========================== */
+document.addEventListener("DOMContentLoaded", () => {
+  initBottomNav();
+  initMainMenuSheet();
+  initAccountMenu();
+  initModals();
+  initThemeToggle();
+  initCommandCenter();
+  initClock();
+
+  if (Array.isArray(window.USER_PERMISSIONS) && window.USER_PERMISSIONS.length) {
+    applyMenuPermissions();
+  } else {
+    fetchMenuPermissions();
+  }
+
+  switchScreen("screen-dashboard");
+  
+  // تشغيل الرادار لأول مرة عند فتح الصفحة
+  window.refreshEagleEye(); 
+
+  // ⚡ استقبال السحر الحي في الإدارة (Real-Time)
+  if (typeof io !== "undefined") {
+    const adminSocket = io(window.API_BASE ? window.API_BASE.replace("/api", "") : "http://127.0.0.1:5000");
+    
+    adminSocket.on("connect", () => {
+      console.log("🟢 [Socket] الإدارة متصلة بالسيرفر الحي وتستمع لإشعارات المعلمين!");
+    });
+
+    // 1. استقبال حالة الرفض 🚨
+    adminSocket.on("substitute_rejected", (data) => {
+      console.log("🚨 [Socket] تم استلام رفض احتياط!");
+      
+      // 🔊 إطلاق صوت الإنذار!
+      if (typeof window.playAdminAlertSound === "function") window.playAdminAlertSound("error");
+
+      if (typeof window.showToast === "function") {
+        window.showToast(`تحذير: الأستاذ (${data?.teacherName || 'المعلم'}) اعتذر عن التغطية!`, "error");
+      }
+      
+      window.refreshEagleEye(); // إظهار الصندوق الأحمر فوراً بدون تحديث الصفحة
+    });
+
+    // 2. استقبال حالة القبول ✅ (الإشعار الأخضر الفخم)
+    adminSocket.on("substitute_accepted", (data) => {
+      console.log("✅ [Socket] تم استلام قبول من المعلم:", data?.teacherName);
+      
+      // 🔊 إطلاق صوت النجاح!
+      if (typeof window.playAdminAlertSound === "function") window.playAdminAlertSound("success");
+
+      // إظهار الـ Toast الصغير المعتاد
+      if (typeof window.showToast === "function") {
+        window.showToast(`ممتاز: الأستاذ (${data?.teacherName || 'المعلم'}) وافق على التغطية.`, "success");
+      }
+
+      // بناء الصندوق الأخضر الكبير في أعلى الشاشة
+      let successBox = document.createElement("div");
+      successBox.style = "background: linear-gradient(135deg, #10b981, #047857); color: white; padding: 15px 20px; border-radius: 8px; margin: 15px; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: space-between; transition: opacity 0.5s ease;";
+      
+      successBox.innerHTML = `
+        <div>
+          <h3 style="margin: 0 0 5px 0; display: flex; align-items: center; gap: 8px; font-size:1.1rem;">
+            <i class="ri-checkbox-circle-fill" style="font-size: 1.5rem;"></i> 
+            خبر مفرح! (تم قبول الاحتياط)
+          </h3>
+          <p style="margin: 0; font-size: 0.95rem; opacity: 0.9;">
+            وافق الأستاذ/ة <strong>(${data?.teacherName || 'المعلم'})</strong> للتو على تغطية حصة الاحتياط. سير العملية التعليمية بأمان ولا حاجة لأي إجراء منك.
+          </p>
+        </div>
+        <button onclick="this.parentElement.remove()" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap;">
+          <i class="ri-close-line"></i> إخفاء
+        </button>
+      `;
+
+      // إضافة الصندوق في أعلى الشاشة
+      document.querySelector("main").prepend(successBox);
+
+      // السحر: إخفاء الصندوق تلقائياً بعد 6 ثوانٍ لكي تبقى الشاشة نظيفة
+      setTimeout(() => {
+        if (successBox && successBox.parentElement) {
+          successBox.style.opacity = "0"; // تدرج بالاختفاء
+          setTimeout(() => successBox.remove(), 500); // حذفه نهائياً
+        }
+      }, 6000);
+    });
+
+    // 3. تحديث جدول الأذونات فوراً
+    adminSocket.on("refresh_admin_permits", () => {
+      const refreshBtn = document.getElementById("tp-refresh");
+      if (refreshBtn) refreshBtn.click();
+    });
+
+  } else {
+    console.error("❌ [Socket] لم يتم العثور على مكتبة Socket.io في صفحة الإدارة!");
+  }
+});
+
 })();

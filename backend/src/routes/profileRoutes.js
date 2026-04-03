@@ -1,12 +1,23 @@
 // src/routes/profileRoutes.js
 import { Router } from "express";
-import { changePassword, changeEmail } from "../controllers/profileController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
+import {
+  getMyProfile,
+  changePassword,
+  changeEmail,
+} from "../controllers/profileController.js";
 
 const router = Router();
 
-// 🔒 جميع هذه المسارات تحتاج توكن صالح
-router.put("/change-password", authMiddleware, changePassword);
-router.put("/change-email", authMiddleware, changeEmail);
+router.use(authMiddleware);
+
+// GET /api/profile/me
+router.get("/me", getMyProfile);
+
+// PUT /api/profile/password
+router.put("/password", changePassword);
+
+// PUT /api/profile/email
+router.put("/email", changeEmail);
 
 export default router;

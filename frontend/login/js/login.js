@@ -1,214 +1,261 @@
-console.log("login.js loaded");
+/* frontend/login/login.js */
+(function () {
+  "use strict";
 
-// 🔧 نحدد إذا كنا على Render أو على جهازك (محلي)
-const IS_RENDER = location.hostname.includes("onrender.com");
+  console.log("login.js loaded ✅ with Auto-Slug support");
 
-// 🧭 دالة تعطيك المسار الصحيح حسب البيئة
-function frontPath(type) {
-  // على Render جذر الموقع هو / (الفرونت داخل frontend لكن نشرته كجذر)
-  // محليًا غالبًا تفتح من جذر المشروع، فيكون عندك /frontend/...
-  const base = IS_RENDER ? "" : "/frontend";
+  const API_BASE = window.API_BASE || "http://127.0.0.1:5000/api";
 
-  if (type === "admin") return `${base}/admin/index.html`;
-  if (type === "teacher") return `${base}/teacher/index.html`;
-  if (type === "student") return `${base}/student/index.html`;
-  if (type === "parent") return `${base}/parent/index.html`;
-  if (type === "login") return `${base}/login/login.html`;
-  return `${base}/admin/index.html`;
+  const state = { inited: false };
+
+  // --- دالة استخراج معرف المدرسة (Slug) من الرابط ---
+ function getSchoolSlug() {
+    const hostname = window.location.hostname;
+    const parts = hostname.split('.');
+    
+    // إذا كان الرابط يحتوي على subdomain (مثل nahda.localhost)
+    if (parts.length >= 2 && parts[parts.length - 1] === 'localhost') {
+        return parts[0]; // سيعيد nahda أو majd
+    }
+    return "smart-school"; // الافتراضي
 }
 
-// ✅ لو المستخدم مسجل دخول من قبل، نوجّهه مباشرة للوحة التحكم
-(function autoRedirectIfLoggedIn() {
-  try {
-    const token = localStorage.getItem("token");
-    const userStr = localStorage.getItem("user");
-    if (!token || !userStr) return;
-
-    const user = JSON.parse(userStr);
-    const roleRaw =
-      user && (user.role || user.role_name || user.roleName || "");
-    const role = String(roleRaw).toLowerCase();
-
-    if (!role) return;
-
-    if (role.includes("admin")) {
-      window.location.href = frontPath("admin");
-    } else if (role.includes("teacher")) {
-      window.location.href = frontPath("teacher");
-    } else if (role.includes("student")) {
-      window.location.href = frontPath("student");
-    } else if (role.includes("parent")) {
-      window.location.href = frontPath("parent");
-    }
-  } catch (e) {
-    console.warn("Error reading stored user:", e);
+  function $(sel, root = document) {
+    return root.querySelector(sel);
   }
-})();
+  function $all(sel, root = document) {
+    return Array.from(root.querySelectorAll(sel));
+  }
 
-// عناصر الـ DOM
-const loginBtn = document.getElementById("login-btn");
-const usernameError = document.getElementById("username-error");
-const passwordError = document.getElementById("password-error");
-const usernameInput = document.getElementById("username");
-const passwordInput = document.getElementById("password");
+  function safeJsonParse(s) {
+    try { return JSON.parse(s); } catch { return null; }
+  }
 
-// دالة مريحة لتشغيل تسجيل الدخول
-function triggerLogin() {
-  if (loginBtn) loginBtn.click();
-}
+  function getRoleKeyFromUser(user) {
+    const direct =
+      (user && (user.role_key || user.roleKey || user.role_code || user.roleCode)) || "";
+    if (direct) return String(direct).trim().toLowerCase();
 
-// أحداث الكيبورد في الحقول
-if (usernameInput && passwordInput) {
-  usernameInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      triggerLogin();
+    const name = (user && (user.role || user.role_name || user.roleName)) || "";
+    const n = String(name).trim().toLowerCase();
+    if (["admin", "teacher", "student", "parent"].includes(n)) return n;
+
+    const id = Number(user && user.role_id);
+    if (id === 1) return "admin";
+    if (id === 2) return "teacher";
+    if (id === 3) return "student";
+    if (id === 4) return "parent";
+
+    return "";
+  }
+
+  function dashboardUrlFor(roleKey) {
+    if (roleKey === "teacher") return "/frontend/teacher/index.html";
+    if (roleKey === "student") return "/frontend/student/index.html";
+    if (roleKey === "parent") return "/frontend/parent/index.html";
+    return "/frontend/admin/index.html";
+  }
+
+  function goto(url) {
+    console.log("تم الانتقال إلى", url);
+    window.location.replace(url);
+  }
+
+  function saveSession(token, user) {
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user || {}));
+  }
+
+  function clearSession() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  }
+
+  function redirectIfAlreadyLoggedIn() {
+    const token = localStorage.getItem("token");
+    const user = safeJsonParse(localStorage.getItem("user") || "");
+    if (token && user) {
+      const roleKey = getRoleKeyFromUser(user);
+      goto(dashboardUrlFor(roleKey));
+      return true;
     }
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      passwordInput.focus();
+    return false;
+  }
+
+  function findLoginElements() {
+    const form = $("#loginForm") || $("form");
+
+    const email =
+      $("#email") ||
+      $("#loginEmail") ||
+      $("#username") ||
+      $("#loginUsername") ||
+      $("input[type='email']") ||
+      $("input[name='email']") ||
+      $("input[name='username']") ||
+      guessInputByPlaceholder(["بريد", "email", "اسم المستخدم", "username", "user"]);
+
+    const password =
+      $("#password") ||
+      $("#loginPassword") ||
+      $("input[type='password']") ||
+      $("input[name='password']") ||
+      guessInputByPlaceholder(["كلمة", "pass", "password"]);
+
+    const submit =
+      $("#loginBtn") ||
+      $("#submitBtn") ||
+      $("button[type='submit']") ||
+      $("input[type='submit']") ||
+      guessButtonByText(["تسجيل الدخول", "دخول", "login", "sign in"]);
+
+    return { form, email, password, submit };
+  }
+
+  function guessInputByPlaceholder(words) {
+    const inputs = $all("input");
+    const w = words.map((x) => String(x).toLowerCase());
+    return (
+      inputs.find((i) => {
+        const ph = String(i.getAttribute("placeholder") || "").toLowerCase();
+        const aria = String(i.getAttribute("aria-label") || "").toLowerCase();
+        const name = String(i.getAttribute("name") || "").toLowerCase();
+        const id = String(i.id || "").toLowerCase();
+        return w.some((k) => ph.includes(k) || aria.includes(k) || name.includes(k) || id.includes(k));
+      }) || null
+    );
+  }
+
+  function guessButtonByText(words) {
+    const btns = $all("button");
+    const w = words.map((x) => String(x).toLowerCase());
+    return (
+      btns.find((b) => {
+        const t = String(b.textContent || "").trim().toLowerCase();
+        const id = String(b.id || "").toLowerCase();
+        const cls = String(b.className || "").toLowerCase();
+        return w.some((k) => t.includes(k) || id.includes(k) || cls.includes(k));
+      }) || null
+    );
+  }
+
+  // ✅ تعديل: دالة الإرسال للسيرفر أصبحت تأخذ الـ Slug تلقائياً
+  async function apiLogin(identifier, password) {
+    const slug = getSchoolSlug(); // استخراج المعرف من الرابط
+
+    if (!slug) {
+        throw new Error("لم نتمكن من تحديد هوية المدرسة من الرابط الحالي.");
     }
-  });
 
-  passwordInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      triggerLogin();
+    const body = {
+      slug: slug, // ✅ تم الإرسال تلقائياً كما يطلبه الكنترولر في الباك إند
+      email: identifier,
+      username: identifier,
+      login: identifier, // لتوافق الأسماء التي قد يستخدمها الباك إند
+      password,
+    };
+
+    const r = await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const text = await r.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+
+    if (!r.ok) {
+      const msg = (data && (data.error || data.message)) || `Login failed (${r.status})`;
+      throw new Error(msg);
     }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      usernameInput.focus();
-    }
-  });
-}
+    return data;
+  }
 
-// 🔗 عنوان الـ API على Render (بدون تكرار /api)
-const API_BASE = "https://smart-school-backend-olz8.onrender.com/api";
+  async function doLogin(getEls) {
+    const { email, password, submit } = getEls();
 
-if (!loginBtn) {
-  console.error("login button not found (id=login-btn)");
-} else {
-  loginBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
-
-    // تنظيف الأخطاء
-    if (usernameError) {
-      usernameError.textContent = "";
-      usernameError.style.display = "none";
-    }
-    if (passwordError) {
-      passwordError.textContent = "";
-      passwordError.style.display = "none";
+    if (!email || !password) {
+      alert("لم أجد حقول تسجيل الدخول في الصفحة.");
+      return;
     }
 
-    const email = usernameInput ? usernameInput.value.trim() : "";
-    const password = passwordInput ? passwordInput.value.trim() : "";
+    const identifier = String(email.value || "").trim();
+    const pass = String(password.value || "");
 
-    let hasError = false;
+    if (!identifier) return alert("اكتب البريد/اسم المستخدم");
+    if (!pass) return alert("اكتب كلمة المرور");
 
-    if (!email) {
-      if (usernameError) {
-        usernameError.textContent = "يرجى إدخال البريد الإلكتروني";
-        usernameError.style.display = "block";
-      }
-      hasError = true;
-    }
-    if (!password) {
-      if (passwordError) {
-        passwordError.textContent = "يرجى إدخال كلمة المرور";
-        passwordError.style.display = "block";
-      }
-      hasError = true;
-    }
-    if (hasError) return;
-
-    // حالة تحميل للزر
-    const originalBtnContent = loginBtn.innerHTML;
-    loginBtn.innerHTML = '<span class="btn-text">جاري الدخول...</span>';
-    loginBtn.style.opacity = "0.7";
-    loginBtn.disabled = true;
+    if (submit) submit.disabled = true;
 
     try {
-      const url = `${API_BASE}/auth/login`; // ✅ هنا أصلحنا /api/api
-      console.log("POST", url, { email });
+      const data = await apiLogin(identifier, pass);
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      // دعم مختلف تنسيقات الرد
+      const token = data.token || data.data?.token || data.accessToken;
+      const user = data.user || data.data?.user || data.data;
 
-      console.log("response status", res.status);
-
-      const text = await res.text();
-      let data = null;
-      try {
-        data = text ? JSON.parse(text) : null;
-      } catch {
-        console.warn("Response is not valid JSON, raw:", text);
+      if (!token || !user) {
+        throw new Error("رد تسجيل الدخول غير متوقع (لا يوجد token/user)");
       }
 
-      if (!res.ok) {
-        const errorMsg =
-          (data && (data.message || data.error)) ||
-          "فشل تسجيل الدخول، تأكد من البيانات.";
-
-        if (errorMsg.includes("كلمة المرور")) {
-          if (passwordError) {
-            passwordError.textContent = errorMsg;
-            passwordError.style.display = "block";
-          }
-        } else {
-          if (usernameError) {
-            usernameError.textContent = errorMsg;
-            usernameError.style.display = "block";
-          }
-        }
-        return;
-      }
-
-      if (!data || !data.token || !data.user) {
-        if (usernameError) {
-          usernameError.textContent = "استجابة غير متوقعة من الخادم.";
-          usernameError.style.display = "block";
-        }
-        return;
-      }
-
-      // ✅ نجاح الدخول
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-
-      const roleRaw =
-        data.user &&
-        (data.user.role || data.user.role_name || data.user.roleName || "");
-      const role = String(roleRaw).toLowerCase();
-      console.log("Resolved role:", roleRaw, "->", role);
-
-      if (role.includes("admin")) {
-        window.location.href = frontPath("admin");
-      } else if (role.includes("teacher")) {
-        window.location.href = frontPath("teacher");
-      } else if (role.includes("student")) {
-        window.location.href = frontPath("student");
-      } else if (role.includes("parent")) {
-        window.location.href = frontPath("parent");
-      } else {
-        window.location.href = frontPath("admin");
-      }
-    } catch (err) {
-      console.error("Login error:", err);
-      if (passwordError) {
-        passwordError.textContent =
-          "خطأ في الاتصال بالخادم، يرجى المحاولة لاحقًا.";
-        passwordError.style.display = "block";
-      }
+      saveSession(token, user);
+      const roleKey = getRoleKeyFromUser(user);
+      goto(dashboardUrlFor(roleKey));
+    } catch (e) {
+      console.error("login error:", e);
+      clearSession();
+      alert(e.message || "فشل تسجيل الدخول");
     } finally {
-      loginBtn.innerHTML = originalBtnContent;
-      loginBtn.style.opacity = "1";
-      loginBtn.disabled = false;
+      if (submit) submit.disabled = false;
     }
-  });
-}
+  }
+
+  function initIfReady() {
+    if (state.inited) return;
+
+    if (redirectIfAlreadyLoggedIn()) {
+      state.inited = true;
+      return;
+    }
+
+    const els = findLoginElements();
+    if (!els.email || !els.password) return;
+
+    state.inited = true;
+
+    const getEls = () => findLoginElements();
+
+    if (els.form) {
+      els.form.addEventListener("submit", (ev) => {
+        ev.preventDefault();
+        doLogin(getEls);
+      });
+    }
+
+    if (els.submit) {
+      els.submit.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        doLogin(getEls);
+      });
+    }
+
+    const enterHandler = (ev) => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        doLogin(getEls);
+      }
+    };
+    els.email.addEventListener("keydown", enterHandler);
+    els.password.addEventListener("keydown", enterHandler);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initIfReady);
+  } else {
+    initIfReady();
+  }
+
+  const obs = new MutationObserver(() => initIfReady());
+  obs.observe(document.documentElement, { childList: true, subtree: true });
+})();

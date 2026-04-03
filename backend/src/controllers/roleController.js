@@ -1,16 +1,20 @@
+// src/controllers/roleController.js
 import Role from "../modules/roleModel.js";
 import { pool } from "../config/db.js"; // ✅ لإجبار المستخدمين على تسجيل الخروج
 
 // ➕ إنشاء دور
 export const createRole = async (req, res) => {
   try {
+    const schoolId = req.user?.school_id;
+    if (!schoolId) return res.status(401).json({ message: "غير مصرح" });
+
     const { name, description } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: "اسم الدور مطلوب" });
     }
 
-    const newRole = await Role.createRole(name, description || "");
+    const newRole = await Role.createRole(schoolId, name, description || "");
     return res.status(201).json(newRole);
   } catch (error) {
     console.error("Error creating role:", error);
@@ -21,7 +25,10 @@ export const createRole = async (req, res) => {
 // 📄 جلب كل الأدوار
 export const getRoles = async (req, res) => {
   try {
-    const roles = await Role.getAllRoles();
+    const schoolId = req.user?.school_id;
+    if (!schoolId) return res.status(401).json({ message: "غير مصرح" });
+
+    const roles = await Role.getAllRoles(schoolId);
     return res.json(roles);
   } catch (error) {
     console.error("Error fetching roles:", error);
@@ -32,7 +39,10 @@ export const getRoles = async (req, res) => {
 // 📌 جلب دور واحد
 export const getRole = async (req, res) => {
   try {
-    const role = await Role.getRoleById(req.params.id);
+    const schoolId = req.user?.school_id;
+    if (!schoolId) return res.status(401).json({ message: "غير مصرح" });
+
+    const role = await Role.getRoleById(schoolId, req.params.id);
     if (!role) {
       return res.status(404).json({ message: "Role not found" });
     }
@@ -46,9 +56,13 @@ export const getRole = async (req, res) => {
 // ✏️ تحديث دور
 export const updateRole = async (req, res) => {
   try {
+    const schoolId = req.user?.school_id;
+    if (!schoolId) return res.status(401).json({ message: "غير مصرح" });
+
     const { name, description } = req.body;
 
     const updated = await Role.updateRole(
+      schoolId,
       req.params.id,
       name,
       description || ""
@@ -68,7 +82,10 @@ export const updateRole = async (req, res) => {
 // 🗑 حذف دور
 export const deleteRole = async (req, res) => {
   try {
-    const deleted = await Role.deleteRole(req.params.id);
+    const schoolId = req.user?.school_id;
+    if (!schoolId) return res.status(401).json({ message: "غير مصرح" });
+
+    const deleted = await Role.deleteRole(schoolId, req.params.id);
 
     if (!deleted) {
       return res.status(404).json({ message: "Role not found" });
@@ -84,14 +101,17 @@ export const deleteRole = async (req, res) => {
 // 🔗 جلب صلاحيات الدور
 export const getRolePermissions = async (req, res) => {
   try {
+    const schoolId = req.user?.school_id;
+    if (!schoolId) return res.status(401).json({ message: "غير مصرح" });
+
     const roleId = req.params.id;
 
-    const role = await Role.getRoleById(roleId);
+    const role = await Role.getRoleById(schoolId, roleId);
     if (!role) {
       return res.status(404).json({ message: "Role not found" });
     }
 
-    const permissions = await Role.getRolePermissionIds(roleId);
+    const permissions = await Role.getRolePermissionIds(schoolId, roleId);
     return res.json({ permissions });
   } catch (error) {
     console.error("Error fetching role permissions:", error);
@@ -100,12 +120,15 @@ export const getRolePermissions = async (req, res) => {
 };
 
 // 🔗 تحديث صلاحيات الدور ✅✅✅
-// 🔗 تحديث صلاحيات الدور ✅✅✅
+// 🔗 تحديث صلاحيات الدور ✅
 export const updateRolePermissions = async (req, res) => {
   try {
+    const schoolId = req.user?.school_id;
+    if (!schoolId) return res.status(401).json({ message: "غير مصرح" });
+
     const roleId = Number(req.params.id);
 
-    const role = await Role.getRoleById(roleId);
+    const role = await Role.getRoleById(schoolId, roleId);
     if (!role) {
       return res.status(404).json({ message: "Role not found" });
     }
@@ -114,17 +137,11 @@ export const updateRolePermissions = async (req, res) => {
       ? req.body.permissions.map(Number)
       : [];
 
-    // ✅ حفظ الصلاحيات في جدول role_permissions
-    await Role.setRolePermissions(roleId, permissions);
+    // 1. حفظ الصلاحيات في جدول role_permissions (عبر الموديل)
+    await Role.setRolePermissions(schoolId, roleId, permissions);
 
-    // ✅ إجبار كل المستخدمين بهذا الدور على تسجيل الدخول من جديد
-    // ❌ الكود القديم (هو سبب الخطأ):
-    // await pool.query(
-    //   "UPDATE users SET token_version = token_version + 1 WHERE role_id = $1",
-    //   [roleId]
-    // );
-
-    // ✅ الكود الصحيح (باستخدام جدول user_roles)
+    // 2. تحديث token_version للمستخدمين المرتبطين بهذا الدور فقط
+    // نستخدم Join مع جدول user_roles لأن عمود role_id موجود هناك وليس في جدول users
     await pool.query(
       `
       UPDATE users u
@@ -132,55 +149,59 @@ export const updateRolePermissions = async (req, res) => {
       FROM user_roles ur
       WHERE ur.user_id = u.id
         AND ur.role_id = $1
+        AND u.school_id = $2
       `,
-      [roleId]
+      [roleId, schoolId]
     );
 
     return res.json({
       success: true,
-      message: "تم تحديث الصلاحيات وإجبار المستخدمين على تسجيل الدخول",
+      message: "تم تحديث الصلاحيات وإجبار المستخدمين على تسجيل الدخول بنجاح ✅",
     });
   } catch (error) {
     console.error("Error updating role permissions:", error);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "حدث خطأ في السيرفر" });
   }
 };
 
-// ✅ منح جميع الصلاحيات للدور ✅✅✅
+// ✅ منح جميع الصلاحيات للدور ✅
 export const grantAllPermissions = async (req, res) => {
   try {
+    const schoolId = req.user?.school_id;
+    if (!schoolId) return res.status(401).json({ message: "غير مصرح" });
+
     const roleId = Number(req.params.id);
+    if (!roleId) return res.status(400).json({ message: "Role ID غير صالح" });
 
-    if (!roleId) {
-      return res.status(400).json({ message: "Role ID غير صالح" });
-    }
+    const role = await Role.getRoleById(schoolId, roleId);
+    if (!role) return res.status(404).json({ message: "الدور غير موجود" });
 
-    const role = await Role.getRoleById(roleId);
-    if (!role) {
-      return res.status(404).json({ message: "الدور غير موجود" });
-    }
-
-    // ✅ جلب كل الصلاحيات
+    // 1. جلب كل الصلاحيات
     const allPermissions = await Role.getAllPermissionIds();
 
-    // ✅ ربط الدور بكل الصلاحيات
-    await Role.setRolePermissions(roleId, allPermissions);
+    // 2. ربط الدور بكل الصلاحيات (عبر الموديل)
+    await Role.setRolePermissions(schoolId, roleId, allPermissions);
 
-    // ✅ إجبار جميع مستخدمي هذا الدور على تسجيل الدخول من جديد
+    // 3. تحديث token_version للمستخدمين المرتبطين بهذا الدور (الاستعلام الصحيح)
     await pool.query(
-      "UPDATE users SET token_version = token_version + 1 WHERE role_id = $1",
-      [roleId]
+      `
+      UPDATE users u
+      SET token_version = COALESCE(u.token_version, 0) + 1
+      FROM user_roles ur
+      WHERE ur.user_id = u.id
+        AND ur.role_id = $1
+        AND u.school_id = $2
+      `,
+      [roleId, schoolId]
     );
 
     return res.json({
       success: true,
-      message: "✅ تم منح جميع الصلاحيات وتم تسجيل خروج المستخدمين",
+      message: "✅ تم منح جميع الصلاحيات وتم تسجيل خروج المستخدمين بنجاح",
       permissions_count: allPermissions.length,
     });
   } catch (error) {
     console.error("grantAllPermissions error:", error);
-    return res.status(500).json({
-      message: "خطأ أثناء منح الصلاحيات",
-    });
+    return res.status(500).json({ message: "خطأ أثناء منح الصلاحيات" });
   }
 };

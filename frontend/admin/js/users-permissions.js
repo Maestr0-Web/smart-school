@@ -1,7 +1,7 @@
 // frontend/admin/js/users-permissions.js
 console.log("users-permissions.js loaded");
 
-const RBAC_API_BASE = "https://smart-school-backend-olz8.onrender.com/api";
+const RBAC_API_BASE = "http://127.0.0.1:5000/api";
 
 /* ==========================================
    أدوات مساعدة عامة
@@ -311,7 +311,19 @@ const RBAC = {
         return;
       }
 
-      const body = JSON.stringify({ name, code, module_code: moduleCode });
+// ✅ استخرج module_id من قائمة الوحدات بناءً على moduleCode
+const selectedModule = this.modules.find((m) => String(m.code) === String(moduleCode));
+const module_id = selectedModule ? Number(selectedModule.id) : null;
+
+// ✅ أرسل أكثر من اسم للحقل عشان يتوافق مع أي باك إند (module_id / moduleId / module_code)
+const body = JSON.stringify({
+  name,
+  code,
+  module_code: moduleCode,
+  moduleCode,       // احتياط لو الباك يستعمل camelCase
+  module_id,
+  moduleId: module_id
+});
 
       if (id) {
         await rbacApiRequest(`/permissions/${id}`, {

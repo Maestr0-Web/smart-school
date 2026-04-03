@@ -10,24 +10,41 @@
       href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap"
       rel="stylesheet"
     />
-
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css"
+    />
     <!-- ملف الـ CSS -->
     <link rel="stylesheet" href="css/admin.css" />
     <link rel="stylesheet" href="css/rbac.css" />
+    <link rel="stylesheet" href="css/viewstudent.css" />
+    <link rel="stylesheet" href="css/studentRenew.css" />
+    <link rel="stylesheet" href="css/fess-page.css" />
+    <link rel="stylesheet" href="css/weeklySchedule.css" />
+    <link rel="stylesheet" href="css/examSchedule.css" />
+    <link rel="stylesheet" href="css/staffRegister.css" />
+    <link rel="stylesheet" href="css/assignTeachers.css" />
+    <link rel="stylesheet" href="css/schoolSettings.css" />
+    <link rel="stylesheet" href="css/inbox.css" />
+    <link rel="stylesheet" href="css/notifications-log.css" />
+    <link rel="stylesheet" href="css/notifications-send.css" />
   </head>
   <body>
     <div class="shell">
       <!-- 🔷 الشريط العلوي -->
       <header class="topbar">
-        <div class="brand">
-          <div class="brand-logo">
-            <span>S</span>
-          </div>
-          <div class="brand-text">
-            <h1>Smart School</h1>
-            <span>مركز إدارة المدرسة</span>
-          </div>
-        </div>
+      <div class="brand">
+  <div class="brand-logo" style="overflow: hidden; display: flex; justify-content: center; align-items: center;">
+    <span id="default-logo-text">S</span>
+    
+    <img id="real-school-logo" src="" style="display: none; width: 100%; height: 100%; object-fit: cover;" alt="شعار المدرسة">
+  </div>
+  
+  <div class="brand-text">
+    <h1 id="real-school-name">Smart School</h1>
+    <span>مركز إدارة المدرسة</span>
+  </div>
+</div>
 
         <!-- مركز الأوامر / البحث -->
         <div class="command-center">
@@ -52,17 +69,28 @@
             id="theme-toggle"
             title="الوضع الليلي / النهاري"
           >
-            🌙
+            <i class="ri-moon-line" aria-hidden="true"></i>
           </button>
 
           <!-- إشعارات (شكل فقط) -->
-          <button
-            class="icon-btn"
-            id="navbar-notifications-btn"
-            title="الإشعارات"
-          >
-            🔔
-          </button>
+     <!-- إشعارات (عداد فقط + فتح صندوق الوارد) -->
+<button
+  class="icon-btn icon-btn--notify"
+  id="navbar-notifications-btn"
+  title="صندوق الوارد"
+  type="button"
+  data-permission="notify.inbox"
+  aria-label="صندوق الوارد"
+>
+  <i class="ri-notification-3-line" aria-hidden="true"></i>
+
+  <!-- عداد الإشعارات غير المقروءة -->
+  <span
+    id="navbar-notifications-badge"
+    class="notify-badge"
+    aria-hidden="true"
+  >0</span>
+</button>
 
           <!-- حساب المستخدم -->
           <div class="account-wrapper">
@@ -82,17 +110,21 @@
             <!-- منيو الحساب -->
             <div class="account-dropdown" id="account-dropdown">
               <button class="account-item" id="open-profile-modal">
-                🙍‍♂️ الملف الشخصي
+                <i class="ri-user-3-line" aria-hidden="true"></i>
+                الملف الشخصي
               </button>
               <button class="account-item" id="open-change-password-modal">
-                🔑 تغيير كلمة المرور
+                <i class="ri-lock-password-line" aria-hidden="true"></i>
+                تغيير كلمة المرور
               </button>
               <button class="account-item" id="open-change-email-modal">
-                📧 تغيير البريد الإلكتروني
+                <i class="ri-mail-line" aria-hidden="true"></i>
+                تغيير البريد الإلكتروني
               </button>
               <hr />
               <button class="account-item account-item--logout" id="logout-btn">
-                🚪 تسجيل الخروج
+                <i class="ri-logout-box-r-line" aria-hidden="true"></i>
+                تسجيل الخروج
               </button>
             </div>
           </div>
@@ -100,14 +132,15 @@
       </header>
 
       <!-- 🟣 الهيرو (لوحة الداشبورد الرئيسية – ثابتة) -->
-      <section class="hero">
+      <section class="hero" id="home-hero">
         <div class="hero-main">
           <div class="hero-text">
             <p class="hero-kicker" id="hero-day-label">الملخص التنفيذي لليوم</p>
             <p class="hero-sub">
-              صباح الخير 👋، أمامك ملخص تنفيذي لليوم الدراسي الحالي في مدرسة
-              النور الأهلية: الحضور، الرسوم، والملفات التي تحتاج إلى متابعتك
-              المباشرة على مستوى المدرسة.
+              صباح الخير <i class="ri-hand-heart-line" aria-hidden="true"></i>،
+              أمامك ملخص تنفيذي لليوم الدراسي الحالي في مدرسة النور الأهلية:
+              الحضور، الرسوم، والملفات التي تحتاج إلى متابعتك المباشرة على مستوى
+              المدرسة.
             </p>
 
             <div class="hero-chips">
@@ -131,16 +164,16 @@
           <!-- دائرة المراقبة -->
           <div class="hero-orbit">
             <div class="orbit-main">
-              <div class="orbit-number" id="orbit-students">1287</div>
+              <div class="orbit-number" id="orbit-students">...</div>
               <div class="orbit-label">طالب مسجَّل هذا الفصل</div>
             </div>
             <div class="orbit-pill orbit-pill--green">
               <span class="orbit-pill-label">عدد المعلمين</span>
-              <span class="orbit-pill-value" id="orbit-teachers">92</span>
+              <span class="orbit-pill-value" id="orbit-teachers">...</span>
             </div>
             <div class="orbit-pill orbit-pill--amber">
               <span class="orbit-pill-label">عدد الفصول الدراسية</span>
-              <span class="orbit-pill-value" id="orbit-classes">48</span>
+              <span class="orbit-pill-value" id="orbit-classes">...</span>
             </div>
             <div class="orbit-glow"></div>
           </div>
@@ -219,52 +252,28 @@
             </section>
 
             <!-- الخط الزمني -->
-            <section class="panel panel-timeline">
-              <div class="panel-header">
-                <h3>الخط الزمني لليوم الدراسي</h3>
-                <button
-                  class="text-btn"
-                  onclick="Dashboard.switchScreen('screen-timetable')"
-                >
-                  عرض الجداول والحضور
-                </button>
-              </div>
-              <div class="timeline">
-                <div class="timeline-item">
-                  <div class="timeline-time">07:00</div>
-                  <div class="timeline-dot"></div>
-                  <div class="timeline-card">
-                    <p>فتح بوابة المدرسة وتوثيق بداية اليوم الدراسي.</p>
-                    <span class="meta">نظام الأمان · تم التحقق من الكاميرات</span>
-                  </div>
-                </div>
+     <section class="panel panel-timeline">
+  <div class="panel-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+    
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <h3 style="margin: 0;">سجل النشاطات المباشر</h3>
+      
+      <input type="date" id="activity-date-filter" 
+             style="border-radius: 8px; border: 1px solid var(--border-soft); background: var(--bg-panel-soft); color: var(--text-main); padding: 4px 10px; font-size: 11.5px; outline: none; cursor: pointer;">
+    </div>
 
-                <div class="timeline-item">
-                  <div class="timeline-time">08:05</div>
-                  <div class="timeline-dot timeline-dot--warn"></div>
-                  <div class="timeline-card">
-                    <p>
-                      تجاوز الغياب في الصفوف 3/أ و3/ب الحد المسموح (أكثر من 10٪).
-                    </p>
-                    <span class="meta meta-warn"
-                      >يتطلب تواصل مع أولياء الأمور اليوم</span
-                    >
-                  </div>
-                </div>
-
-                <div class="timeline-item">
-                  <div class="timeline-time">09:40</div>
-                  <div class="timeline-dot"></div>
-                  <div class="timeline-card">
-                    <p>
-                      مطابقة الدفعات البنكية مع نظام الرسوم وإغلاق دفعة الأمس
-                      المالية.
-                    </p>
-                    <span class="meta">قسم المالية · أ. حسام</span>
-                  </div>
-                </div>
-              </div>
-            </section>
+    <button class="text-btn" onclick="window.location.href='/admin/activity-logs.html'">
+      عرض السجل الكامل
+    </button>
+    
+  </div>
+  
+  <div class="timeline" id="live-activity-timeline">
+    <div style="text-align: center; padding: 20px; color: #888;">
+      <i class="fas fa-spinner fa-spin"></i> جاري جلب النشاطات...
+    </div>
+  </div>
+</section>
 
             <!-- كانبان -->
             <section class="panel panel-kanban">
@@ -279,12 +288,14 @@
                     <span class="task-title">
                       ولي أمر يطلب مقابلة عاجلة بخصوص سلوك طالب في الصف 2/ج.
                     </span>
-                    <span class="task-meta">الإرشاد الطلابي · اليوم 10:30 ص</span>
+                    <span class="task-meta"
+                      >الإرشاد الطلابي · اليوم 10:30 ص</span
+                    >
                   </div>
                   <div class="task task--danger">
                     <span class="task-title">
-                      اعتماد إيقاف مؤقت لطالبة بسبب تجاوز لائحة السلوك (اقتراح من
-                      لجنة السلوك).
+                      اعتماد إيقاف مؤقت لطالبة بسبب تجاوز لائحة السلوك (اقتراح
+                      من لجنة السلوك).
                     </span>
                     <span class="task-meta">لجنة السلوك · بانتظار توقيعك</span>
                   </div>
@@ -325,6 +336,54 @@
                 </div>
               </div>
             </section>
+<!-- ✅ أذونات اليوم (مرئي في الرئيسية) -->
+<section class="panel panel-permissions" id="admPermWidget">
+  <div class="panel-header">
+    <h3>أذونات اليوم</h3>
+
+    <div class="admPermControls">
+      <input type="date" id="admPermDate" class="admPermInput" />
+      <select id="admPermFilter" class="admPermInput">
+        <option value="PENDING">بانتظار</option>
+        <option value="APPROVED">مقبول</option>
+        <option value="REJECTED">مرفوض</option>
+        <option value="ALL">الكل</option>
+      </select>
+
+      <button type="button" class="text-btn" id="admPermRefresh">
+        تحديث
+      </button>
+    </div>
+  </div>
+
+  <div class="admPermStats" id="admPermStats"></div>
+
+  <div class="admPermBody">
+    <div class="admPermEmpty" id="admPermEmpty" style="display:none;">
+      <i class="ri-inbox-2-line" aria-hidden="true"></i>
+      <div>
+        <strong>لا توجد طلبات</strong>
+        <div class="meta">غيّر التاريخ أو الفلتر.</div>
+      </div>
+    </div>
+
+    <div class="admPermTableWrap">
+      <table class="admPermTable">
+        <thead>
+          <tr>
+            <th>الطالب</th>
+            <th>التاريخ</th>
+            <th>النوع</th>
+            <th>السبب</th>
+            <th>الحالة</th>
+            <th>إجراء</th>
+          </tr>
+        </thead>
+        <tbody id="admPermTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
 
             <!-- خريطة نبض المدرسة -->
             <section class="panel panel-heat">
@@ -390,8 +449,12 @@
                 class="module-card"
                 data-permission="admission.view_students"
               >
-                <div class="module-icon">👥</div>
+                <div class="module-icon">
+                  <i class="ri-team-line" aria-hidden="true"></i>
+                </div>
                 <h3>عرض الطلاب</h3>
+                <p>عرض جميع الطلاب في جميع الاقسام</p>
+
                 <button
                   class="primary-btn"
                   onclick="Dashboard.openPage('studentsList','عرض الطلاب')"
@@ -404,7 +467,9 @@
                 class="module-card"
                 data-permission="admission.create_student"
               >
-                <div class="module-icon">➕</div>
+                <div class="module-icon">
+                  <i class="ri-user-add-line" aria-hidden="true"></i>
+                </div>
                 <h3>تسجيل طالب جديد</h3>
                 <p>إضافة طالب جديد مع جميع بياناته الأكاديمية والشخصية.</p>
                 <button
@@ -419,7 +484,9 @@
                 class="module-card"
                 data-permission="admission.renew_student"
               >
-                <div class="module-icon">🔄</div>
+                <div class="module-icon">
+                  <i class="ri-refresh-line" aria-hidden="true"></i>
+                </div>
                 <h3>تسجيل المستمرين</h3>
                 <p>تجديد تسجيل الطلاب المستمرين للعام أو الفصل الجديد.</p>
                 <button
@@ -448,7 +515,9 @@
                 class="module-card"
                 data-permission="staff.create_employee"
               >
-                <div class="module-icon">👨‍💼</div>
+                <div class="module-icon">
+                  <i class="ri-briefcase-line" aria-hidden="true"></i>
+                </div>
                 <h3>تسجيل الموظفين</h3>
                 <p>إضافة وتحديث بيانات جميع الموظفين في المدرسة.</p>
                 <button
@@ -463,7 +532,9 @@
                 class="module-card"
                 data-permission="staff.assign_teacher"
               >
-                <div class="module-icon">👨‍🏫</div>
+                <div class="module-icon">
+                  <i class="ri-user-star-line" aria-hidden="true"></i>
+                </div>
                 <h3>تعيين المدرسين</h3>
                 <p>توزيع وتعيين المعلمين على الفصول والمواد.</p>
                 <button
@@ -489,7 +560,9 @@
             </div>
             <div class="modules-grid">
               <article class="module-card" data-permission="timetable.view">
-                <div class="module-icon">📆</div>
+                <div class="module-icon">
+                  <i class="ri-calendar-schedule-line" aria-hidden="true"></i>
+                </div>
                 <h3>جداول الحصص الأسبوعية</h3>
                 <p>إدارة جداول الحصص لجميع الصفوف.</p>
                 <button
@@ -501,7 +574,9 @@
               </article>
 
               <article class="module-card" data-permission="timetable.manage">
-                <div class="module-icon">📝</div>
+                <div class="module-icon">
+                  <i class="ri-file-list-3-line" aria-hidden="true"></i>
+                </div>
                 <h3>جداول الامتحانات</h3>
                 <p>ضبط جداول الاختبارات لجميع المراحل.</p>
                 <button
@@ -526,13 +601,12 @@
               <h3>الحضور والغياب</h3>
             </div>
             <div class="modules-grid">
-              <article
-                class="module-card"
-                data-permission="attendance.barcode"
-              >
-                <div class="module-icon">🧾</div>
-                <h3>تسجيل الحضور باركود</h3>
-                <p>استخدام الباركود لتسجيل حضور الطلاب.</p>
+              <article class="module-card" data-permission="attendance.barcode">
+                <div class="module-icon">
+                  <i class="ri-qr-scan-2-line" aria-hidden="true"></i>
+                </div>
+                <h3>تسجيل الحضور </h3>
+                <p>  لتسجيل حضور المعلمين .</p>
                 <button
                   class="primary-btn"
                   onclick="Dashboard.openPage('barcodeAttendance','تسجيل الحضور باركود')"
@@ -542,9 +616,11 @@
               </article>
 
               <article class="module-card" data-permission="attendance.manual">
-                <div class="module-icon">✏️</div>
-                <h3>تسجيل الحضور يدويًا</h3>
-                <p>إدخال حضور وغياب الطلاب يدويًا.</p>
+                <div class="module-icon">
+                  <i class="ri-edit-line" aria-hidden="true"></i>
+                </div>
+                <h3>  اذونات المعلمين</h3>
+                <p>  ادارة الاذونات   .</p>
                 <button
                   class="primary-btn"
                   onclick="Dashboard.openPage('manualAttendance','تسجيل الحضور يدويًا')"
@@ -553,11 +629,10 @@
                 </button>
               </article>
 
-              <article
-                class="module-card"
-                data-permission="attendance.reports"
-              >
-                <div class="module-icon">📊</div>
+              <article class="module-card" data-permission="attendance.reports">
+                <div class="module-icon">
+                  <i class="ri-bar-chart-2-line" aria-hidden="true"></i>
+                </div>
                 <h3>تقارير الحضور</h3>
                 <p>عرض تقارير تفصيلية عن الحضور والغياب.</p>
                 <button
@@ -583,7 +658,9 @@
             </div>
             <div class="modules-grid">
               <article class="module-card" data-permission="notify.create">
-                <div class="module-icon">🔔</div>
+                <div class="module-icon">
+                  <i class="ri-notification-3-line" aria-hidden="true"></i>
+                </div>
                 <h3>إنشاء إشعار</h3>
                 <p>إرسال إشعارات للطلاب وأولياء الأمور والمعلمين.</p>
                 <button
@@ -595,7 +672,9 @@
               </article>
 
               <article class="module-card" data-permission="notify.view_log">
-                <div class="module-icon">📜</div>
+                <div class="module-icon">
+                  <i class="ri-history-line" aria-hidden="true"></i>
+                </div>
                 <h3>سجل الإشعارات</h3>
                 <p>متابعة الإشعارات التي تم إرسالها.</p>
                 <button
@@ -606,8 +685,10 @@
                 </button>
               </article>
 
-              <article class="module-card" data-permission="notify.view_log">
-                <div class="module-icon">📥</div>
+              <article class="module-card" data-permission="notify.inbox">
+                <div class="module-icon">
+                  <i class="ri-inbox-line" aria-hidden="true"></i>
+                </div>
                 <h3>صندوق الوارد</h3>
                 <p>استعراض رسائل الوارد من النظام.</p>
                 <button
@@ -633,7 +714,9 @@
             </div>
             <div class="modules-grid">
               <article class="module-card" data-permission="fees.pay">
-                <div class="module-icon">💳</div>
+                <div class="module-icon">
+                  <i class="ri-bank-card-line" aria-hidden="true"></i>
+                </div>
                 <h3>سداد الرسوم</h3>
                 <p>تسجيل مدفوعات الطلاب وإدارتها.</p>
                 <button
@@ -645,12 +728,27 @@
               </article>
 
               <article class="module-card" data-permission="fees.reports">
-                <div class="module-icon">📊</div>
+                <div class="module-icon">
+                  <i class="ri-line-chart-line" aria-hidden="true"></i>
+                </div>
                 <h3>تقارير الرسوم</h3>
                 <p>عرض تقارير مفصلة عن الرسوم والمدفوعات والمتأخرات.</p>
                 <button
                   class="primary-btn"
                   onclick="Dashboard.openPage('feesReports','تقارير الرسوم')"
+                >
+                  فتح
+                </button>
+              </article>
+              <article class="module-card" data-permission="Graphics-settings">
+                <div class="module-icon">
+                  <i class="ri-line-chart-line" aria-hidden="true"></i>
+                </div>
+                <h3>اعدادات الرسوم</h3>
+                <p>تحديد وعرض الاقساط وتحديد الرسوم</p>
+                <button
+                  class="primary-btn"
+                  onclick="Dashboard.openPage('feesSettings','تقارير الرسوم')"
                 >
                   فتح
                 </button>
@@ -674,7 +772,9 @@
                 class="module-card"
                 data-permission="reports.student_data"
               >
-                <div class="module-icon">👨‍🎓</div>
+                <div class="module-icon">
+                  <i class="ri-graduation-cap-line" aria-hidden="true"></i>
+                </div>
                 <h3>بيانات الطلاب</h3>
                 <p>تصدير وعرض بيانات الطلاب حسب الصف أو المرحلة.</p>
                 <button
@@ -686,7 +786,9 @@
               </article>
 
               <article class="module-card" data-permission="reports.staff_data">
-                <div class="module-icon">👨‍💼</div>
+                <div class="module-icon">
+                  <i class="ri-user-settings-line" aria-hidden="true"></i>
+                </div>
                 <h3>بيانات الموظفين</h3>
                 <p>عرض بيانات المعلمين والموظفين.</p>
                 <button
@@ -701,7 +803,9 @@
                 class="module-card"
                 data-permission="reports.term_grades"
               >
-                <div class="module-icon">📈</div>
+                <div class="module-icon">
+                  <i class="ri-line-chart-line" aria-hidden="true"></i>
+                </div>
                 <h3>تقارير الدرجات الفصلية</h3>
                 <p>تقارير الدرجات الفصلية حسب المادة والصف.</p>
                 <button
@@ -716,7 +820,9 @@
                 class="module-card"
                 data-permission="reports.final_grades"
               >
-                <div class="module-icon">🏅</div>
+                <div class="module-icon">
+                  <i class="ri-medal-2-line" aria-hidden="true"></i>
+                </div>
                 <h3>تقارير الدرجات النهائية</h3>
                 <p>نتائج نهاية العام الدراسي.</p>
                 <button
@@ -731,7 +837,9 @@
                 class="module-card"
                 data-permission="reports.student_stats"
               >
-                <div class="module-icon">📊</div>
+                <div class="module-icon">
+                  <i class="ri-pie-chart-2-line" aria-hidden="true"></i>
+                </div>
                 <h3>إحصائيات الطلاب</h3>
                 <p>ملخصات وإحصائيات عامة عن أداء وحضور الطلاب.</p>
                 <button
@@ -760,7 +868,9 @@
                 class="module-card"
                 data-permission="control.monthly_work"
               >
-                <div class="module-icon">🧮</div>
+                <div class="module-icon">
+                  <i class="ri-calculator-line" aria-hidden="true"></i>
+                </div>
                 <h3>تسجيل الأعمال الشهرية</h3>
                 <p>إدخال وتحديث الأعمال الشهرية للطلاب.</p>
                 <button
@@ -772,7 +882,9 @@
               </article>
 
               <article class="module-card" data-permission="control.term_work">
-                <div class="module-icon">📄</div>
+                <div class="module-icon">
+                  <i class="ri-file-text-line" aria-hidden="true"></i>
+                </div>
                 <h3>تسجيل الأعمال الفصلية</h3>
                 <p>إدخال درجات الأعمال الفصلية للمواد.</p>
                 <button
@@ -787,7 +899,9 @@
                 class="module-card"
                 data-permission="control.print_certificates"
               >
-                <div class="module-icon">🏅</div>
+                <div class="module-icon">
+                  <i class="ri-award-line" aria-hidden="true"></i>
+                </div>
                 <h3>شهادات شهرية</h3>
                 <p>إصدار شهادات أعمال شهرية للطلاب.</p>
                 <button
@@ -802,7 +916,9 @@
                 class="module-card"
                 data-permission="control.print_certificates"
               >
-                <div class="module-icon">🎓</div>
+                <div class="module-icon">
+                  <i class="ri-award-line" aria-hidden="true"></i>
+                </div>
                 <h3>شهادات فصلية</h3>
                 <p>إخراج شهادات درجات نهاية الفصل.</p>
                 <button
@@ -817,7 +933,9 @@
                 class="module-card"
                 data-permission="control.final_grades"
               >
-                <div class="module-icon">🏆</div>
+                <div class="module-icon">
+                  <i class="ri-trophy-line" aria-hidden="true"></i>
+                </div>
                 <h3>نتائج نهاية الفصل</h3>
                 <p>عرض واعتماد نتائج نهاية الفصل الدراسي.</p>
                 <button
@@ -832,7 +950,9 @@
                 class="module-card"
                 data-permission="control.final_grades"
               >
-                <div class="module-icon">👑</div>
+                <div class="module-icon">
+                  <i class="ri-vip-crown-line" aria-hidden="true"></i>
+                </div>
                 <h3>نتائج نهاية العام</h3>
                 <p>عرض واعتماد النتائج النهائية للعام الدراسي.</p>
                 <button
@@ -858,7 +978,9 @@
             </div>
             <div class="modules-grid">
               <article class="module-card" data-permission="rbac.manage_users">
-                <div class="module-icon">👤</div>
+                <div class="module-icon">
+                  <i class="ri-user-3-line" aria-hidden="true"></i>
+                </div>
                 <h3>المستخدمون</h3>
                 <p>إدارة حسابات المستخدمين وصلاحيات الدخول.</p>
                 <button
@@ -870,7 +992,9 @@
               </article>
 
               <article class="module-card" data-permission="rbac.manage_roles">
-                <div class="module-icon">👥</div>
+                <div class="module-icon">
+                  <i class="ri-shield-line" aria-hidden="true"></i>
+                </div>
                 <h3>الأدوار</h3>
                 <p>إنشاء وتعديل الأدوار وربطها بالصلاحيات.</p>
                 <button
@@ -885,7 +1009,9 @@
                 class="module-card"
                 data-permission="rbac.manage_permissions"
               >
-                <div class="module-icon">🔐</div>
+                <div class="module-icon">
+                  <i class="ri-lock-2-line" aria-hidden="true"></i>
+                </div>
                 <h3>الصلاحيات</h3>
                 <p>التحكم بالصلاحيات لكل دور في النظام.</p>
                 <button
@@ -900,7 +1026,9 @@
                 class="module-card"
                 data-permission="rbac.manage_modules"
               >
-                <div class="module-icon">📦</div>
+                <div class="module-icon">
+                  <i class="ri-apps-line" aria-hidden="true"></i>
+                </div>
                 <h3>الوحدات (Modules)</h3>
                 <p>تنظيم وحدات النظام وربطها بالأدوار والصلاحيات.</p>
                 <button
@@ -922,7 +1050,9 @@
             </div>
             <div class="modules-grid">
               <article class="module-card">
-                <div class="module-icon">🙍‍♂️</div>
+                <div class="module-icon">
+                  <i class="ri-user-3-line" aria-hidden="true"></i>
+                </div>
                 <h3>الملف الشخصي</h3>
                 <p>عرض بيانات حسابك الحالي.</p>
                 <button class="primary-btn" id="open-profile-modal-card">
@@ -931,7 +1061,9 @@
               </article>
 
               <article class="module-card">
-                <div class="module-icon">🔑</div>
+                <div class="module-icon">
+                  <i class="ri-lock-password-line" aria-hidden="true"></i>
+                </div>
                 <h3>تغيير كلمة المرور</h3>
                 <p>تعديل كلمة المرور لتأمين حسابك.</p>
                 <button
@@ -943,7 +1075,9 @@
               </article>
 
               <article class="module-card">
-                <div class="module-icon">📧</div>
+                <div class="module-icon">
+                  <i class="ri-mail-line" aria-hidden="true"></i>
+                </div>
                 <h3>تغيير البريد الإلكتروني</h3>
                 <p>تحديث البريد المرتبط بحسابك.</p>
                 <button class="primary-btn" id="open-change-email-modal-card">
@@ -962,7 +1096,9 @@
             </div>
             <div class="modules-grid">
               <article class="module-card">
-                <div class="module-icon">☀️</div>
+                <div class="module-icon">
+                  <i class="ri-contrast-2-line" aria-hidden="true"></i>
+                </div>
                 <h3>الوضع الليلي / النهاري</h3>
                 <p>تبديل مظهر النظام بين الوضع الليلي والنهاري.</p>
                 <button class="primary-btn" id="theme-toggle-card">
@@ -970,12 +1106,20 @@
                 </button>
               </article>
 
-              <article class="module-card">
-                <div class="module-icon">🌐</div>
-                <h3>اللغة</h3>
-                <p>إعدادات اللغة (يمكن ربطها لاحقًا بالباك إند).</p>
-                <button class="primary-btn" disabled>قريبًا</button>
-              </article>
+         <article class="module-card" data-permission="Settings.School-Settings">
+  <div class="module-icon">
+    <i class="ri-global-line" aria-hidden="true"></i>
+  </div>
+  <h3>إعدادات المدرسة</h3>
+  <p>التحكم بالسنوات، المراحل، الصفوف، الشعب، المواد، ومنهج الصفوف.</p>
+  <button
+    class="primary-btn"
+    onclick="Dashboard.openPage('schoolSettings','إعدادات المدرسة')"
+  >
+    فتح
+  </button>
+</article>
+
             </div>
           </div>
         </section>
@@ -1001,7 +1145,7 @@
           class="bottom-item bottom-item--active"
           data-target="screen-dashboard"
         >
-          <span>🏠</span>
+          <span><i class="ri-home-5-line" aria-hidden="true"></i></span>
           <span>الرئيسية</span>
         </button>
         <button
@@ -1009,7 +1153,7 @@
           data-target="screen-admission"
           data-any-permission="admission.view_students,admission.create_student,admission.renew_student"
         >
-          <span>👨‍🎓</span>
+          <span><i class="ri-user-add-line" aria-hidden="true"></i></span>
           <span>التسجيل</span>
         </button>
         <button
@@ -1017,7 +1161,9 @@
           data-target="screen-timetable"
           data-any-permission="timetable.view,timetable.manage,timetable.delete"
         >
-          <span>📅</span>
+          <span
+            ><i class="ri-calendar-schedule-line" aria-hidden="true"></i
+          ></span>
           <span>اليوم الدراسي</span>
         </button>
         <button
@@ -1025,12 +1171,12 @@
           data-target="screen-fees"
           data-any-permission="fees.pay,fees.reports"
         >
-          <span>💰</span>
+          <span><i class="ri-wallet-3-line" aria-hidden="true"></i></span>
           <span>الرسوم</span>
         </button>
         <!-- زر المنيو لباقي القوائم الرئيسية -->
         <button class="bottom-item bottom-item--menu" id="main-menu-button">
-          <span>☰</span>
+          <span><i class="ri-menu-2-line" aria-hidden="true"></i></span>
           <span>القائمة</span>
         </button>
       </nav>
@@ -1045,76 +1191,80 @@
         </div>
         <div class="sheet-grid">
           <button class="sheet-item" data-target="screen-dashboard">
-            🏠 الرئيسية
+            <i class="ri-home-5-line" aria-hidden="true"></i> الرئيسية
           </button>
           <button
             class="sheet-item"
             data-target="screen-admission"
             data-any-permission="admission.view_students,admission.create_student,admission.renew_student"
           >
-            👨‍🎓 التسجيل والقبول
+            <i class="ri-user-add-line" aria-hidden="true"></i> التسجيل والقبول
           </button>
           <button
             class="sheet-item"
             data-target="screen-staff"
             data-any-permission="staff.create_employee,staff.assign_teacher,staff.view_employees,staff.update_employee,staff.delete_employee"
           >
-            👨‍💼 الموظفون
+            <i class="ri-briefcase-line" aria-hidden="true"></i> الموظفون
           </button>
           <button
             class="sheet-item"
             data-target="screen-timetable"
             data-any-permission="timetable.view,timetable.manage,timetable.delete"
           >
-            📅 جداول المدرسة
+            <i class="ri-calendar-schedule-line" aria-hidden="true"></i> جداول
+            المدرسة
           </button>
           <button
             class="sheet-item"
             data-target="screen-attendance"
             data-any-permission="attendance.barcode,attendance.manual,attendance.reports"
           >
-            ✅ الحضور والغياب
+            <i class="ri-checkbox-circle-line" aria-hidden="true"></i> الحضور
+            والغياب
           </button>
           <button
             class="sheet-item"
             data-target="screen-notify"
             data-any-permission="notify.create,notify.view_log"
           >
-            🔔 الإشعارات
+            <i class="ri-notification-3-line" aria-hidden="true"></i> الإشعارات
           </button>
           <button
             class="sheet-item"
             data-target="screen-control"
             data-any-permission="control.monthly_work,control.term_work,control.print_certificates,control.final_grades"
           >
-            🧮 الكنترول
+            <i class="ri-calculator-line" aria-hidden="true"></i> الكنترول
           </button>
           <button
             class="sheet-item"
             data-target="screen-fees"
             data-any-permission="fees.pay,fees.reports"
           >
-            💰 الرسوم الدراسية
+            <i class="ri-wallet-3-line" aria-hidden="true"></i> الرسوم الدراسية
           </button>
           <button
             class="sheet-item"
             data-target="screen-reports"
             data-any-permission="reports.student_data,reports.staff_data,reports.term_grades,reports.final_grades,reports.student_stats"
           >
-            📊 التقارير العامة
+            <i class="ri-bar-chart-2-line" aria-hidden="true"></i> التقارير
+            العامة
           </button>
           <button
             class="sheet-item"
             data-target="screen-rbac"
             data-any-permission="rbac.manage_users,rbac.manage_roles,rbac.manage_permissions,rbac.manage_modules"
           >
-            🛡 المستخدمون والصلاحيات
+            <i class="ri-shield-line" aria-hidden="true"></i> المستخدمون
+            والصلاحيات
           </button>
           <button class="sheet-item" data-target="screen-account">
-            👤 إعدادات الحساب
+            <i class="ri-user-3-line" aria-hidden="true"></i> إعدادات الحساب
           </button>
           <button class="sheet-item" data-target="screen-site">
-            🌐 إعدادات الموقع
+            <i class="ri-settings-3-line" aria-hidden="true"></i> إعدادات الموقع
           </button>
         </div>
       </div>
@@ -1127,7 +1277,9 @@
     <div class="modal" id="profile-modal">
       <div class="modal-dialog">
         <div class="modal-header">
-          <h3>🙍‍♂️ الملف الشخصي</h3>
+          <h3>
+            <i class="ri-user-3-line" aria-hidden="true"></i> الملف الشخصي
+          </h3>
           <button class="modal-close" data-close-modal>×</button>
         </div>
         <div class="modal-body">
@@ -1140,7 +1292,8 @@
             <span id="profile-email">principal@school.edu</span>
           </p>
           <p>
-            <strong>الدور:</strong> <span id="profile-role">مدير عام المدرسة</span>
+            <strong>الدور:</strong>
+            <span id="profile-role">مدير عام المدرسة</span>
           </p>
         </div>
         <div class="modal-footer">
@@ -1153,7 +1306,10 @@
     <div class="modal" id="change-password-modal">
       <div class="modal-dialog">
         <div class="modal-header">
-          <h3>🔑 تغيير كلمة المرور</h3>
+          <h3>
+            <i class="ri-lock-password-line" aria-hidden="true"></i> تغيير كلمة
+            المرور
+          </h3>
           <button class="modal-close" data-close-modal>×</button>
         </div>
         <div class="modal-body">
@@ -1180,7 +1336,10 @@
     <div class="modal" id="change-email-modal">
       <div class="modal-dialog">
         <div class="modal-header">
-          <h3>📧 تغيير البريد الإلكتروني</h3>
+          <h3>
+            <i class="ri-mail-line" aria-hidden="true"></i> تغيير البريد
+            الإلكتروني
+          </h3>
           <button class="modal-close" data-close-modal>×</button>
         </div>
         <div class="modal-body">
@@ -1204,10 +1363,137 @@
       </div>
     </div>
 
-    <!-- 🔁 ملف الجافاسكربت -->
+    <!-- ✅ أيقونة المساعد -->
+    <!-- زر فتح المساعد الذكي -->
+    <div id="ai-assistant-button" title="المساعد الذكي">
+      <span class="ai-assistant-icon">
+        <i class="ri-message-3-line" aria-hidden="true"></i>
+      </span>
+    </div>
+
+    <!-- نافذة المساعد الذكي -->
+    <div id="ai-assistant-chat" dir="rtl">
+      <div class="ai-chat-header">
+        <div class="ai-chat-header-left">
+          <div class="ai-avatar">
+            <span>ذ</span>
+          </div>
+          <div>
+            <div class="ai-title">المساعد الذكي</div>
+            <div class="ai-status">
+              <span class="ai-status-dot"></span>
+              متصل الآن
+            </div>
+          </div>
+        </div>
+        <div class="ai-chat-header-actions">
+          <button id="ai-chat-clear" title="مسح المحادثة">
+            <i class="ri-delete-bin-6-line" aria-hidden="true"></i>
+          </button>
+          <button id="ai-chat-close" title="إغلاق">
+            <i class="ri-close-line" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="ai-chat-messages" id="ai-chat-messages">
+        <div class="ai-system-msg">
+          <i class="ri-hand-heart-line" aria-hidden="true"></i> أهلاً بك في
+          <strong>المساعد الذكي</strong>، اسألني عن دراستك أو أي شيء عام.
+        </div>
+      </div>
+
+      <div class="ai-chat-footer">
+        <button
+          id="ai-chat-copy"
+          class="ai-secondary-btn"
+          title="نسخ آخر إجابة"
+        >
+          نسخ آخر إجابة
+        </button>
+        <div class="ai-chat-input">
+          <input
+            type="text"
+            id="ai-chat-input-text"
+            placeholder="اكتب سؤالك هنا..."
+            autocomplete="off"
+          />
+          <button id="ai-chat-send">إرسال</button>
+        </div>
+      </div>
+    </div>
+<!-- <script src="http://127.0.0.1:5000/socket.io/socket.io.js"></script> -->
     <script src="js/admin.js"></script>
     <script src="js/main.js"></script>
     <script src="js/users-permissions.js"></script>
-    <script src="js/profile-modals.js"></script>
+    <script src="js/student-register.js?v=20251218"></script>
+
+    <script src="js/viewstudent.js"></script>
+    <script src="js/studentRenew.js"></script>
+    <!-- <script src="js/fees-pages.js"></script> -->
+    <script src="js/weeklySchedule.js"></script>
+    <script src="js/examSchedule.js"></script>
+    <script src="js/staffRegister.js?v=999"></script>
+    <script src="js/assignTeachers.js"></script>
+    <script src="js/schoolSettings.js"></script>
+<script src="js/permissionsWidget.js"></script>
+<script src="js/adminTeacherAttendance.js"></script>
+<script src="js/adminTeacherPermits.js"></script>
+<script src="js/attendanceReports.js"></script>
+<script src="js/inbox.js"></script>
+<script src="js/notificationsSend.js"></script>
+<script src="js/notificationsLog.js"></script>
+<script src="js/navbarNotificationsBell.js"></script>
+<script src="js/feespay.js"></script>
+<script src="js/feesReports.js"></script>
+<script src="js/fees-settings.js"></script>
+<script src="js/monthlyWork.js"></script>
+    <script src="/frontend/shared/profile-account.js" defer></script>
+
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"
+    ></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"
+    ></script>
+    <script src="http://127.0.0.1:5000/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // الاستماع الفوري للإشعارات للإدارة
+  document.addEventListener("DOMContentLoaded", () => {
+    if (typeof io !== "undefined") {
+      const adminSocket = io("http://127.0.0.1:5000");
+      
+      adminSocket.on("connect", () => {
+        console.log("🟢 [Socket] الإدارة متصلة بالسيرفر الحي بنجاح!");
+      });
+
+      // 1. عند رفض المعلم
+      adminSocket.on("substitute_rejected", (data) => {
+        console.log("🚨 [Socket] تم استلام رفض من المعلم:", data?.teacherName);
+        if (typeof window.showToast === "function") {
+          window.showToast(`تحذير: الأستاذ (${data?.teacherName || 'المعلم'}) اعتذر عن التغطية!`, "error");
+        }
+        // تحديث الصندوق الأحمر فوراً بدون ريفريش!
+        if (typeof window.refreshEagleEye === "function") window.refreshEagleEye();
+      });
+
+      // 2. عند قبول المعلم
+      adminSocket.on("substitute_accepted", (data) => {
+        if (typeof window.showToast === "function") {
+          window.showToast(`ممتاز: الأستاذ (${data?.teacherName || 'المعلم'}) وافق على التغطية.`, "success");
+        }
+      });
+
+      // 3. تحديث قائمة الأذونات لو كانت مفتوحة أمام المدير
+      adminSocket.on("refresh_admin_permits", () => {
+        const refreshBtn = document.getElementById("tp-refresh");
+        if (refreshBtn) refreshBtn.click();
+      });
+    }
+  });
+</script>
   </body>
 </html>

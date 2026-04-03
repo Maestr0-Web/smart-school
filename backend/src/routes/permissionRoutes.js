@@ -1,22 +1,20 @@
 import { Router } from "express";
 import { PermissionController } from "../controllers/permissionController.js";
-import adminOnly from "../middleware/adminOnly.js";
+import authMiddleware from "../middleware/authMiddleware.js";
+import checkPermission from "../middleware/checkPermission.js";
 
 const router = Router();
 
-// إنشاء صلاحية
-router.post("/", PermissionController.createPermission);
+// 🔒 جميع المسارات يجب أن تكون محمية بتسجيل الدخول
+router.use(authMiddleware);
 
-// عرض كل الصلاحيات
+// 👁️ عرض الصلاحيات (مسموح لأي شخص يملك صلاحية إدارة الأدوار ليتمكن من رؤية القائمة)
 router.get("/", PermissionController.getPermissions);
-
-// عرض صلاحية واحدة
 router.get("/:id", PermissionController.getPermission);
 
-// تعديل صلاحية
-router.put("/:id", PermissionController.updatePermission);
-
-// حذف صلاحية
-router.delete("/:id", PermissionController.deletePermission);
+// ⚠️ إنشاء، تعديل، وحذف صلاحية (عمليات حساسة ومحكومة بصلاحية إدارة الصلاحيات)
+router.post("/", checkPermission("rbac.manage_permissions"), PermissionController.createPermission);
+router.put("/:id", checkPermission("rbac.manage_permissions"), PermissionController.updatePermission);
+router.delete("/:id", checkPermission("rbac.manage_permissions"), PermissionController.deletePermission);
 
 export default router;
